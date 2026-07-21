@@ -1,9 +1,12 @@
 {
   "name": "rest-express",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
+    "build:exe": "npm run build && electron-builder",
+    "release": "npm run build && electron-builder --publish always",
     "dev": "NODE_ENV=development tsx server/index.ts",
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
@@ -45,6 +48,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.7",
+    "electron-updater": "^6.8.9",
     "embla-carousel-react": "^8.6.0",
     "express": "^5.0.1",
     "express-session": "^1.18.1",
@@ -86,6 +90,8 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
@@ -95,5 +101,51 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "build": {
+    "appId": "com.modelhane.app",
+    "productName": "Modelhane Planlama",
+    "directories": {
+      "output": "dist-exe"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "dist/**/*",
+      "desktop/**/*",
+      ".env",
+      "node_modules/**/*"
+    ],
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "package.json",
+      ".env",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": ".env",
+        "to": "../.env"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Seyfullah-KIZILKAYAA",
+        "repo": "modelhane-kaynak"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Modelhane Planlama"
+    }
   }
 }

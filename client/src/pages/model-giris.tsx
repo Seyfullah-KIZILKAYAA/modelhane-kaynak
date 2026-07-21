@@ -10,13 +10,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { GROUPS, CATEGORIES, STATUSES, NUMUNE_CINSLERI, KUMAS_ASAMALARI } from "@shared/schema";
 import type { Model } from "@shared/schema";
 import { durumRenk, trTarih, kalanGun, terminRenk, numuneRenk, kumasRenk } from "@/lib/helpers";
-import { Plus, Package, CheckCircle2, XCircle, Layers } from "lucide-react";
+import {
+  Plus, Package, CheckCircle2, XCircle, Layers, Trash2,
+  User, Tag, Hash, CalendarDays, UserCircle, Shirt, Scissors,
+  Search, SlidersHorizontal, X,
+} from "lucide-react";
 
 export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici: boolean; grup: string | null }) {
   const { toast } = useToast();
@@ -42,6 +46,34 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const [kAsama, setKAsama] = useState("Belirtilmedi");
   const [kTarih, setKTarih] = useState("");
   const [kNot, setKNot] = useState("");
+
+  // Silme onay dialog
+  const [silModel, setSilModel] = useState<Model | null>(null);
+
+  // Filtreleme
+  const [fArama, setFArama] = useState("");
+  const [fGrup, setFGrup] = useState("__all__");
+  const [fKategori, setFKategori] = useState("__all__");
+  const [fDurum, setFDurum] = useState("__all__");
+  const [fNumune, setFNumune] = useState("__all__");
+
+  const filtrelerAktif = fArama || fGrup !== "__all__" || fKategori !== "__all__" || fDurum !== "__all__" || fNumune !== "__all__";
+
+  const filteredModels = models.filter((m) => {
+    if (fArama) {
+      const q = fArama.toLowerCase();
+      if (!m.modelKodu.toLowerCase().includes(q) && !m.girenKisi.toLowerCase().includes(q) && !m.grup.toLowerCase().includes(q)) return false;
+    }
+    if (fGrup !== "__all__" && m.grup !== fGrup) return false;
+    if (fKategori !== "__all__" && m.kategori !== fKategori) return false;
+    if (fDurum !== "__all__" && m.durum !== fDurum) return false;
+    if (fNumune !== "__all__" && m.numuneDurum !== fNumune) return false;
+    return true;
+  });
+
+  function filtreleriTemizle() {
+    setFArama(""); setFGrup("__all__"); setFKategori("__all__"); setFDurum("__all__"); setFNumune("__all__");
+  }
 
   const ekle = useMutation({
     mutationFn: async () => {
@@ -91,6 +123,19 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
     },
   });
 
+  const sil = useMutation({
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/models/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/models"] });
+      toast({ title: "Model silindi", description: `${silModel?.modelKodu ?? "Model"} başarıyla silindi.` });
+      setSilModel(null);
+    },
+    onError: (e: Error) => {
+      toast({ title: "Silme başarısız", description: e.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+      setSilModel(null);
+    },
+  });
+
   const grupKilitli = !isYonetici && !!sabitGrup;
   const gecerli = grup && modelKodu && kategori && adet && termin && girenKisi;
 
@@ -112,214 +157,542 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Giriş formu */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Plus className="w-5 h-5 text-primary" /> Yeni Model Girişi
+    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-8">
+      {/* ───── Giriş Formu ───── */}
+      <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-card to-card/80">
+        <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-xl">
+            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+              <Plus className="w-5 h-5 text-primary" />
+            </div>
+            Yeni Model Girişi
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Grup</label>
-              {grupKilitli ? (
-                <Input value={grup} disabled className="font-medium" data-testid="input-grup-sabit" />
-              ) : (
-                <Select value={grup} onValueChange={setGrup}>
-                  <SelectTrigger data-testid="select-grup"><SelectValue placeholder="Grup seçin" /></SelectTrigger>
+        <CardContent className="pt-2 pb-6">
+          {/* Ürün Bilgileri */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5" /> Ürün Bilgileri
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-primary/70" /> Grup
+                </label>
+                {grupKilitli ? (
+                  <Input value={grup} disabled className="font-medium bg-muted/50" data-testid="input-grup-sabit" />
+                ) : (
+                  <Select value={grup} onValueChange={setGrup}>
+                    <SelectTrigger data-testid="select-grup"><SelectValue placeholder="Grup seçin" /></SelectTrigger>
+                    <SelectContent>
+                      {GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-primary/70" /> Model Kodu / Adı
+                </label>
+                <Input value={modelKodu} onChange={(e) => setModelKodu(e.target.value)} placeholder="Örn: GM-1001" data-testid="input-modelkodu" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Shirt className="w-3.5 h-3.5 text-primary/70" /> Ürün Kategorisi
+                </label>
+                <Select value={kategori} onValueChange={setKategori}>
+                  <SelectTrigger data-testid="select-kategori"><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
                   <SelectContent>
-                    {GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-primary/70" /> Adet
+                </label>
+                <Input type="number" min="1" value={adet} onChange={(e) => setAdet(e.target.value)} placeholder="Örn: 250" data-testid="input-adet" />
+              </div>
+            </div>
+          </div>
+
+          {/* Tarih & Kişi */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <CalendarDays className="w-3.5 h-3.5" /> Tarih & Kişi Bilgileri
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <CalendarDays className="w-3.5 h-3.5 text-primary/70" /> Termin Tarihi
+                </label>
+                <Input type="date" value={termin} onChange={(e) => setTermin(e.target.value)} data-testid="input-termin" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <UserCircle className="w-3.5 h-3.5 text-primary/70" /> Giren Kişi
+                </label>
+                <Input value={girenKisi} onChange={(e) => setGirenKisi(e.target.value)} placeholder="Adınız" data-testid="input-giren" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Scissors className="w-3.5 h-3.5 text-primary/70" /> Numune Cinsi
+                </label>
+                <Select value={numuneCinsi} onValueChange={setNumuneCinsi}>
+                  <SelectTrigger data-testid="select-numune-cinsi"><SelectValue placeholder="Numune cinsi seçin" /></SelectTrigger>
+                  <SelectContent>
+                    {NUMUNE_CINSLERI.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Kumaş Bilgileri */}
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" /> Kumaş Bilgileri
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-primary/70" /> Kumaş Durumu
+                </label>
+                <Select value={yeniKumas} onValueChange={setYeniKumas}>
+                  <SelectTrigger data-testid="select-yeni-kumas"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {KUMAS_ASAMALARI.map((a) => <SelectItem key={a} value={a}>{a === "Belirtilmedi" ? "— Belirtilmedi" : a}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {yeniKumas !== "Belirtilmedi" && yeniKumas !== "Hazır" && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium flex items-center gap-1.5">
+                    <CalendarDays className="w-3.5 h-3.5 text-primary/70" /> Kumaş Ne Zaman Hazır? (opsiyonel)
+                  </label>
+                  <Input type="date" value={yeniKumasTarih} onChange={(e) => setYeniKumasTarih(e.target.value)} data-testid="input-yeni-kumas-tarih" />
+                </div>
               )}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Model Kodu / Adı</label>
-              <Input value={modelKodu} onChange={(e) => setModelKodu(e.target.value)} placeholder="Örn: GM-1001" data-testid="input-modelkodu" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Ürün Kategorisi</label>
-              <Select value={kategori} onValueChange={setKategori}>
-                <SelectTrigger data-testid="select-kategori"><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Adet</label>
-              <Input type="number" min="1" value={adet} onChange={(e) => setAdet(e.target.value)} placeholder="Örn: 250" data-testid="input-adet" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Termin Tarihi</label>
-              <Input type="date" value={termin} onChange={(e) => setTermin(e.target.value)} data-testid="input-termin" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Giren Kişi</label>
-              <Input value={girenKisi} onChange={(e) => setGirenKisi(e.target.value)} placeholder="Adınız" data-testid="input-giren" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Numune Cinsi</label>
-              <Select value={numuneCinsi} onValueChange={setNumuneCinsi}>
-                <SelectTrigger data-testid="select-numune-cinsi"><SelectValue placeholder="Numune cinsi seçin" /></SelectTrigger>
-                <SelectContent>
-                  {NUMUNE_CINSLERI.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium flex items-center gap-1"><Layers className="w-4 h-4 text-primary" /> Kumaş Durumu</label>
-              <Select value={yeniKumas} onValueChange={setYeniKumas}>
-                <SelectTrigger data-testid="select-yeni-kumas"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {KUMAS_ASAMALARI.map((a) => <SelectItem key={a} value={a}>{a === "Belirtilmedi" ? "— Belirtilmedi" : a}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {yeniKumas !== "Belirtilmedi" && yeniKumas !== "Hazır" && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Kumaş Ne Zaman Hazır? (opsiyonel)</label>
-                <Input type="date" value={yeniKumasTarih} onChange={(e) => setYeniKumasTarih(e.target.value)} data-testid="input-yeni-kumas-tarih" />
-              </div>
-            )}
           </div>
-          <Button className="mt-4" onClick={() => ekle.mutate()} disabled={!gecerli || ekle.isPending} data-testid="button-ekle">
+
+          <Button
+            className="mt-2 px-6 h-11 text-sm font-semibold bg-gradient-to-r from-primary to-primary/85 hover:from-primary/90 hover:to-primary/75 shadow-md hover:shadow-lg transition-all duration-200"
+            onClick={() => ekle.mutate()}
+            disabled={!gecerli || ekle.isPending}
+            data-testid="button-ekle"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
             {ekle.isPending ? "Ekleniyor..." : "Modeli Ekle"}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Girilen modeller listesi */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Package className="w-5 h-5 text-primary" /> Girilen Modeller
-            <Badge variant="secondary" className="ml-2">{models.length}</Badge>
+      {/* ───── Girilen Modeller Listesi ───── */}
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-xl">
+            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+              <Package className="w-5 h-5 text-primary" />
+            </div>
+            Girilen Modeller
+            <Badge variant="secondary" className="ml-2 text-xs font-bold px-2.5 py-0.5">
+              {filtrelerAktif ? `${filteredModels.length} / ${models.length}` : models.length}
+            </Badge>
           </CardTitle>
+
+          {/* ── Filtre Barı ── */}
+          {models.length > 0 && (
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <SlidersHorizontal className="w-3.5 h-3.5" /> Filtrele
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                {/* Arama */}
+                <div className="relative col-span-2 sm:col-span-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    value={fArama}
+                    onChange={(e) => setFArama(e.target.value)}
+                    placeholder="Ara (model, kişi, grup)"
+                    className="pl-8 h-8 text-xs"
+                    data-testid="filter-arama"
+                  />
+                </div>
+                {/* Grup */}
+                <Select value={fGrup} onValueChange={setFGrup}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="filter-grup">
+                    <SelectValue placeholder="Grup" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tüm Gruplar</SelectItem>
+                    {GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {/* Kategori */}
+                <Select value={fKategori} onValueChange={setFKategori}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="filter-kategori">
+                    <SelectValue placeholder="Kategori" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tüm Kategoriler</SelectItem>
+                    {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {/* Durum */}
+                <Select value={fDurum} onValueChange={setFDurum}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="filter-durum">
+                    <SelectValue placeholder="Durum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tüm Durumlar</SelectItem>
+                    {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {/* Numune Durumu */}
+                <Select value={fNumune} onValueChange={setFNumune}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="filter-numune">
+                    <SelectValue placeholder="Numune" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tüm Numune Durumları</SelectItem>
+                    <SelectItem value="Bekliyor">Bekliyor</SelectItem>
+                    <SelectItem value="Numune OK">Numune OK</SelectItem>
+                    <SelectItem value="Numune NOT OK">Numune NOT OK</SelectItem>
+                  </SelectContent>
+                </Select>
+                {/* Temizle */}
+                {filtrelerAktif && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={filtreleriTemizle}
+                    data-testid="filter-temizle"
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" /> Temizle
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">Yükleniyor...</p>
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <p className="text-muted-foreground text-sm">Yükleniyor...</p>
+              </div>
+            </div>
           ) : models.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">Henüz model girilmedi. Yukarıdan ilk modeli ekleyin.</p>
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+                <Package className="w-8 h-8 text-muted-foreground/50" />
+              </div>
+              <p className="text-muted-foreground text-sm">Henüz model girilmedi.</p>
+              <p className="text-muted-foreground/60 text-xs">Yukarıdan ilk modeli ekleyin.</p>
+            </div>
+          ) : filteredModels.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+                <Search className="w-7 h-7 text-muted-foreground/50" />
+              </div>
+              <p className="text-muted-foreground text-sm">Filtreye uygun model bulunamadı.</p>
+              <Button variant="outline" size="sm" className="text-xs" onClick={filtreleriTemizle}>
+                <X className="w-3.5 h-3.5 mr-1" /> Filtreleri Temizle
+              </Button>
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="py-2 px-2 font-medium">Grup</th>
-                    <th className="py-2 px-2 font-medium">Model</th>
-                    <th className="py-2 px-2 font-medium">Kategori</th>
-                    <th className="py-2 px-2 font-medium text-right">Adet</th>
-                    <th className="py-2 px-2 font-medium">Termin</th>
-                    <th className="py-2 px-2 font-medium">Giren</th>
-                    <th className="py-2 px-2 font-medium">Durum</th>
-                    <th className="py-2 px-2 font-medium">Kumaş Durumu</th>
-                    <th className="py-2 px-2 font-medium">Numune Cinsi</th>
-                    <th className="py-2 px-2 font-medium">Numune Durumu</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {models.map((m) => {
-                    const g = kalanGun(m.termin);
-                    return (
-                      <tr key={m.id} className="border-b hover:bg-accent/40 align-top" data-testid={`row-model-${m.id}`}>
-                        <td className="py-2 px-2">{m.grup}</td>
-                        <td className="py-2 px-2 font-medium">{m.modelKodu}</td>
-                        <td className="py-2 px-2">{m.kategori}</td>
-                        <td className="py-2 px-2 text-right tabular-nums">{m.adet.toLocaleString("tr-TR")}</td>
-                        <td className={`py-2 px-2 tabular-nums ${terminRenk(g, m.durum)}`}>
-                          {trTarih(m.termin)}
-                          {g !== null && m.durum !== "Tamamlandı" && (
-                            <span className="block text-xs opacity-80">
-                              {g < 0 ? `${Math.abs(g)} gün geçti` : g === 0 ? "Bugün" : `${g} gün kaldı`}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 px-2 text-muted-foreground">{m.girenKisi}</td>
-                        <td className="py-2 px-2">
-                          <Select value={m.durum} onValueChange={(v) => durumGuncelle.mutate({ id: m.id, durum: v })}>
-                            <SelectTrigger className="h-8 w-auto border-0 p-0 focus:ring-0" data-testid={`select-durum-${m.id}`}>
-                              <Badge variant="outline" className={durumRenk(m.durum)}>{m.durum}</Badge>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        {/* Kumaş durumu */}
-                        <td className="py-2 px-2 min-w-[170px]">
-                          <div className="flex flex-col gap-1.5 items-start">
-                            <Badge variant="outline" className={kumasRenk(m.kumasDurum)} data-testid={`badge-kumas-${m.id}`}>
-                              {m.kumasDurum === "Belirtilmedi" ? "—" : m.kumasDurum}
-                            </Badge>
-                            {m.kumasHazirTarih && (
-                              <span className="text-xs text-muted-foreground">
-                                Hazır: {trTarih(m.kumasHazirTarih)}
+            <>
+              {/* ── Masaüstü Tablo Görünümü ── */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-primary/10 bg-muted/30 text-left">
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Grup</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Model</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Kategori</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right">Adet</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Termin</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Giren</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Durum</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Kumaş</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Numune Cinsi</th>
+                      <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Numune Durumu</th>
+                      {isYonetici && (
+                        <th className="py-3 px-3 font-semibold text-xs uppercase tracking-wider text-muted-foreground w-[60px]">İşlem</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredModels.map((m, idx) => {
+                      const g = kalanGun(m.termin);
+                      return (
+                        <tr
+                          key={m.id}
+                          className={`border-b transition-colors duration-150 hover:bg-primary/5 align-top ${
+                            idx % 2 === 0 ? "bg-transparent" : "bg-muted/20"
+                          }`}
+                          data-testid={`row-model-${m.id}`}
+                        >
+                          <td className="py-2.5 px-3">
+                            <Badge variant="outline" className="text-xs font-medium">{m.grup}</Badge>
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-foreground">{m.modelKodu}</td>
+                          <td className="py-2.5 px-3 text-muted-foreground">{m.kategori}</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums font-medium">{m.adet.toLocaleString("tr-TR")}</td>
+                          <td className={`py-2.5 px-3 tabular-nums ${terminRenk(g, m.durum)}`}>
+                            {trTarih(m.termin)}
+                            {g !== null && m.durum !== "Tamamlandı" && (
+                              <span className="block text-xs opacity-80">
+                                {g < 0 ? `${Math.abs(g)} gün geçti` : g === 0 ? "Bugün" : `${g} gün kaldı`}
                               </span>
                             )}
-                            {m.kumasNot && (
-                              <span className="text-xs text-muted-foreground max-w-[200px]">{m.kumasNot}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-muted-foreground">{m.girenKisi}</td>
+                          <td className="py-2.5 px-3">
+                            <Select value={m.durum} onValueChange={(v) => durumGuncelle.mutate({ id: m.id, durum: v })}>
+                              <SelectTrigger className="h-8 w-auto border-0 p-0 focus:ring-0" data-testid={`select-durum-${m.id}`}>
+                                <Badge variant="outline" className={durumRenk(m.durum)}>{m.durum}</Badge>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          {/* Kumaş durumu */}
+                          <td className="py-2.5 px-3 min-w-[170px]">
+                            <div className="flex flex-col gap-1.5 items-start">
+                              <Badge variant="outline" className={kumasRenk(m.kumasDurum)} data-testid={`badge-kumas-${m.id}`}>
+                                {m.kumasDurum === "Belirtilmedi" ? "—" : m.kumasDurum}
+                              </Badge>
+                              {m.kumasHazirTarih && (
+                                <span className="text-xs text-muted-foreground">
+                                  Hazır: {trTarih(m.kumasHazirTarih)}
+                                </span>
+                              )}
+                              {m.kumasNot && (
+                                <span className="text-xs text-muted-foreground max-w-[200px]">{m.kumasNot}</span>
+                              )}
+                              <Button size="sm" variant="ghost" className="h-7 px-2 text-primary"
+                                onClick={() => kumasAc(m)} data-testid={`button-kumas-${m.id}`}>
+                                <Layers className="w-4 h-4 mr-1" /> Düzenle
+                              </Button>
+                            </div>
+                          </td>
+                          {/* Numune cinsi */}
+                          <td className="py-2.5 px-3 min-w-[150px]">
+                            <Select value={m.numuneCinsi} onValueChange={(v) => numuneCinsiGuncelle.mutate({ id: m.id, numuneCinsi: v })}>
+                              <SelectTrigger className="h-8 text-xs" data-testid={`select-numune-cinsi-${m.id}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {NUMUNE_CINSLERI.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          {/* Numune durumu */}
+                          <td className="py-2.5 px-3 min-w-[210px]">
+                            <div className="flex flex-col gap-1.5">
+                              <Badge variant="outline" className={numuneRenk(m.numuneDurum)} data-testid={`badge-numune-${m.id}`}>
+                                {m.numuneDurum}
+                              </Badge>
+                              {m.numuneDurum === "Numune NOT OK" && m.numuneSebep && (
+                                <span className="text-xs text-red-600 dark:text-red-400 max-w-[240px]">
+                                  Sebep: {m.numuneSebep}
+                                </span>
+                              )}
+                              <div className="flex items-center gap-1">
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10"
+                                  onClick={() => numuneOK(m)} data-testid={`button-numune-ok-${m.id}`}>
+                                  <CheckCircle2 className="w-4 h-4 mr-1" /> OK
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                  onClick={() => numuneNotOkAc(m)} data-testid={`button-numune-notok-${m.id}`}>
+                                  <XCircle className="w-4 h-4 mr-1" /> NOT OK
+                                </Button>
+                                {m.numuneDurum !== "Bekliyor" && (
+                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground"
+                                    onClick={() => numuneSifirla(m)} data-testid={`button-numune-sifirla-${m.id}`}>
+                                    Sıfırla
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          {/* Silme butonu — sadece yöneticiye göster */}
+                          {isYonetici && (
+                            <td className="py-2.5 px-3">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"
+                                onClick={() => setSilModel(m)}
+                                data-testid={`button-sil-${m.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Mobil Kart Görünümü ── */}
+              <div className="lg:hidden divide-y">
+                {filteredModels.map((m) => {
+                  const g = kalanGun(m.termin);
+                  return (
+                    <div key={m.id} className="p-4 space-y-3 hover:bg-muted/20 transition-colors" data-testid={`card-model-${m.id}`}>
+                      {/* Kart başlığı */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-base">{m.modelKodu}</span>
+                            <Badge variant="outline" className="text-xs">{m.grup}</Badge>
+                            <Badge variant="outline" className={`text-xs ${durumRenk(m.durum)}`}>{m.durum}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">{m.kategori} · {m.adet.toLocaleString("tr-TR")} adet</p>
+                        </div>
+                        {isYonetici && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/10"
+                            onClick={() => setSilModel(m)}
+                            data-testid={`button-sil-mobile-${m.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Detay satırları */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Termin</span>
+                          <span className={`font-medium tabular-nums ${terminRenk(g, m.durum)}`}>
+                            {trTarih(m.termin)}
+                            {g !== null && m.durum !== "Tamamlandı" && (
+                              <span className="block text-xs opacity-80">
+                                {g < 0 ? `${Math.abs(g)} gün geçti` : g === 0 ? "Bugün" : `${g} gün kaldı`}
+                              </span>
                             )}
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-primary"
-                              onClick={() => kumasAc(m)} data-testid={`button-kumas-${m.id}`}>
-                              <Layers className="w-4 h-4 mr-1" /> Düzenle
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Giren</span>
+                          <span className="text-muted-foreground">{m.girenKisi}</span>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Kumaş</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant="outline" className={`text-xs ${kumasRenk(m.kumasDurum)}`}>
+                              {m.kumasDurum === "Belirtilmedi" ? "—" : m.kumasDurum}
+                            </Badge>
+                            <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs text-primary"
+                              onClick={() => kumasAc(m)}>
+                              Düzenle
                             </Button>
                           </div>
-                        </td>
-                        {/* Numune cinsi */}
-                        <td className="py-2 px-2 min-w-[150px]">
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Numune Cinsi</span>
                           <Select value={m.numuneCinsi} onValueChange={(v) => numuneCinsiGuncelle.mutate({ id: m.id, numuneCinsi: v })}>
-                            <SelectTrigger className="h-8 text-xs" data-testid={`select-numune-cinsi-${m.id}`}>
+                            <SelectTrigger className="h-7 text-xs w-auto">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {NUMUNE_CINSLERI.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                        </td>
-                        {/* Numune durumu */}
-                        <td className="py-2 px-2 min-w-[210px]">
-                          <div className="flex flex-col gap-1.5">
-                            <Badge variant="outline" className={numuneRenk(m.numuneDurum)} data-testid={`badge-numune-${m.id}`}>
-                              {m.numuneDurum}
-                            </Badge>
-                            {m.numuneDurum === "Numune NOT OK" && m.numuneSebep && (
-                              <span className="text-xs text-red-600 dark:text-red-400 max-w-[240px]">
-                                Sebep: {m.numuneSebep}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <Button size="sm" variant="ghost" className="h-7 px-2 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10"
-                                onClick={() => numuneOK(m)} data-testid={`button-numune-ok-${m.id}`}>
-                                <CheckCircle2 className="w-4 h-4 mr-1" /> OK
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-7 px-2 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                onClick={() => numuneNotOkAc(m)} data-testid={`button-numune-notok-${m.id}`}>
-                                <XCircle className="w-4 h-4 mr-1" /> NOT OK
-                              </Button>
-                              {m.numuneDurum !== "Bekliyor" && (
-                                <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground"
-                                  onClick={() => numuneSifirla(m)} data-testid={`button-numune-sifirla-${m.id}`}>
-                                  Sıfırla
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+
+                      {/* Durum ve numune aksiyonları */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Select value={m.durum} onValueChange={(v) => durumGuncelle.mutate({ id: m.id, durum: v })}>
+                          <SelectTrigger className="h-7 w-auto border-0 p-0 focus:ring-0">
+                            <Badge variant="outline" className={durumRenk(m.durum)}>{m.durum}</Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex-1" />
+                        <Badge variant="outline" className={numuneRenk(m.numuneDurum)}>{m.numuneDurum}</Badge>
+                        <Button size="sm" variant="ghost" className="h-7 px-1.5 text-green-700 dark:text-green-400"
+                          onClick={() => numuneOK(m)}>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-1.5 text-red-700 dark:text-red-400"
+                          onClick={() => numuneNotOkAc(m)}>
+                          <XCircle className="w-3.5 h-3.5" />
+                        </Button>
+                        {m.numuneDurum !== "Bekliyor" && (
+                          <Button size="sm" variant="ghost" className="h-7 px-1.5 text-xs text-muted-foreground"
+                            onClick={() => numuneSifirla(m)}>
+                            Sıfırla
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* NOT OK sebebi */}
+                      {m.numuneDurum === "Numune NOT OK" && m.numuneSebep && (
+                        <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-md px-2.5 py-1.5">
+                          Sebep: {m.numuneSebep}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Numune NOT OK sebep dialog */}
+      {/* ───── Silme Onay Dialog ───── */}
+      <Dialog open={!!silModel} onOpenChange={(o) => { if (!o) setSilModel(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" /> Modeli Sil
+            </DialogTitle>
+            <DialogDescription>
+              Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-4">
+              <p className="text-sm">
+                <span className="font-bold text-foreground">{silModel?.modelKodu}</span>
+                <span className="text-muted-foreground"> — {silModel?.grup} · {silModel?.kategori}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {silModel?.adet.toLocaleString("tr-TR")} adet · Termin: {silModel ? trTarih(silModel.termin) : ""}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSilModel(null)}>Vazgeç</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={sil.isPending}
+              onClick={() => silModel && sil.mutate(silModel.id)}
+              data-testid="button-sil-onayla"
+            >
+              {sil.isPending ? "Siliniyor..." : "Evet, Sil"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ───── Numune NOT OK sebep dialog ───── */}
       <Dialog open={!!notOkModel} onOpenChange={(o) => { if (!o) { setNotOkModel(null); setSebep(""); } }}>
         <DialogContent>
           <DialogHeader>
@@ -348,7 +721,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
         </DialogContent>
       </Dialog>
 
-      {/* Kumaş durumu dialog */}
+      {/* ───── Kumaş durumu dialog ───── */}
       <Dialog open={!!kumasModel} onOpenChange={(o) => { if (!o) { setKumasModel(null); } }}>
         <DialogContent>
           <DialogHeader>

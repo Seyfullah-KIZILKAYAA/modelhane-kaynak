@@ -12,6 +12,7 @@ import Siralama from "@/pages/siralama";
 import Panel from "@/pages/panel";
 import Durumum from "@/pages/durumum";
 import Ayarlar from "@/pages/ayarlar";
+import UpdateDialog from "@/components/update-dialog";
 
 type Role = "kullanici" | "yonetici";
 type Tab = "giris" | "siralama" | "panel" | "durumum" | "ayarlar";
@@ -145,6 +146,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        <UpdateDialog />
         {role ? (
           <Shell role={role} grup={grup} onLogout={handleLogout} />
         ) : (

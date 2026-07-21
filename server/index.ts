@@ -95,12 +95,22 @@ app.use((req, res, next) => {
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
+      // Electron kabuğunda sadece yerel erişim yeterli (güvenlik duvarı uyarısı çıkmaz).
+      host: process.env.ELECTRON_APP === "1" ? "127.0.0.1" : "0.0.0.0",
       // reusePort is not supported on Windows (ENOTSUP)
       reusePort: process.platform !== "win32",
     },
     () => {
-      log(`serving on port ${port}`);
+      const address = httpServer.address();
+      const actualPort = typeof address === 'object' && address !== null ? address.port : port;
+      log(`serving on port ${actualPort}`);
+
+      // Electron kabuğu içinde çalışıyorsak pencereyi bu portla aç.
+      const onListening = (globalThis as any).__onServerListening;
+      if (typeof onListening === "function") {
+        (globalThis as any).__lastPort = actualPort;
+        onListening(actualPort);
+      }
     },
   );
 })();
