@@ -34,7 +34,8 @@ export class SqlServerStorage implements IStorage {
     const pool = await getPool();
     const r = await pool
       .request()
-      .query(`SELECT ${SELECT_COLS} FROM dbo.models ORDER BY created_at ASC`);
+      // Son eklenen en üstte: yeniden eskiye. Aynı ms'de eklenenler için id tie-breaker.
+      .query(`SELECT ${SELECT_COLS} FROM dbo.models ORDER BY created_at DESC, id DESC`);
     return r.recordset.map(rowToModel);
   }
 

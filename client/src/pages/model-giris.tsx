@@ -19,7 +19,7 @@ import { durumRenk, trTarih, kalanGun, terminRenk, numuneRenk, kumasRenk } from 
 import {
   Plus, Package, CheckCircle2, XCircle, Layers, Trash2,
   User, Tag, Hash, CalendarDays, UserCircle, Shirt, Scissors,
-  Search, SlidersHorizontal, X,
+  Search, SlidersHorizontal, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici: boolean; grup: string | null }) {
@@ -57,6 +57,15 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const [fDurum, setFDurum] = useState("__all__");
   const [fNumune, setFNumune] = useState("__all__");
 
+  // Sayfalama durumu
+  const [sayfa, setSayfa] = useState(1);
+  const [sayfaBoyu, setSayfaBoyu] = useState(20);
+
+  // Filtre her değiştiğinde başa dön, yoksa kullanıcı boş bir sayfada kalır.
+  function filtreDegisti<T>(setter: (v: T) => void) {
+    return (v: T) => { setter(v); setSayfa(1); };
+  }
+
   const filtrelerAktif = fArama || fGrup !== "__all__" || fKategori !== "__all__" || fDurum !== "__all__" || fNumune !== "__all__";
 
   const filteredModels = models.filter((m) => {
@@ -74,6 +83,13 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   function filtreleriTemizle() {
     setFArama(""); setFGrup("__all__"); setFKategori("__all__"); setFDurum("__all__"); setFNumune("__all__");
   }
+
+  // ── Sayfalama ──
+  const toplamSayfa = Math.max(1, Math.ceil(filteredModels.length / sayfaBoyu));
+  // Filtre daraldığında mevcut sayfa listenin dışında kalabilir; son sayfaya sabitle.
+  const gecerliSayfa = Math.min(sayfa, toplamSayfa);
+  const basIndex = (gecerliSayfa - 1) * sayfaBoyu;
+  const sayfaModelleri = filteredModels.slice(basIndex, basIndex + sayfaBoyu);
 
   const ekle = useMutation({
     mutationFn: async () => {
@@ -313,14 +329,14 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <Input
                     value={fArama}
-                    onChange={(e) => setFArama(e.target.value)}
+                    onChange={(e) => { setFArama(e.target.value); setSayfa(1); }}
                     placeholder="Ara (model, kişi, grup)"
                     className="pl-8 h-8 text-xs"
                     data-testid="filter-arama"
                   />
                 </div>
                 {/* Grup */}
-                <Select value={fGrup} onValueChange={setFGrup}>
+                <Select value={fGrup} onValueChange={filtreDegisti(setFGrup)}>
                   <SelectTrigger className="h-8 text-xs" data-testid="filter-grup">
                     <SelectValue placeholder="Grup" />
                   </SelectTrigger>
@@ -330,7 +346,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   </SelectContent>
                 </Select>
                 {/* Kategori */}
-                <Select value={fKategori} onValueChange={setFKategori}>
+                <Select value={fKategori} onValueChange={filtreDegisti(setFKategori)}>
                   <SelectTrigger className="h-8 text-xs" data-testid="filter-kategori">
                     <SelectValue placeholder="Kategori" />
                   </SelectTrigger>
@@ -340,7 +356,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   </SelectContent>
                 </Select>
                 {/* Durum */}
-                <Select value={fDurum} onValueChange={setFDurum}>
+                <Select value={fDurum} onValueChange={filtreDegisti(setFDurum)}>
                   <SelectTrigger className="h-8 text-xs" data-testid="filter-durum">
                     <SelectValue placeholder="Durum" />
                   </SelectTrigger>
@@ -350,7 +366,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   </SelectContent>
                 </Select>
                 {/* Numune Durumu */}
-                <Select value={fNumune} onValueChange={setFNumune}>
+                <Select value={fNumune} onValueChange={filtreDegisti(setFNumune)}>
                   <SelectTrigger className="h-8 text-xs" data-testid="filter-numune">
                     <SelectValue placeholder="Numune" />
                   </SelectTrigger>
@@ -426,7 +442,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredModels.map((m, idx) => {
+                    {sayfaModelleri.map((m, idx) => {
                       const g = kalanGun(m.termin);
                       return (
                         <tr
@@ -544,7 +560,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
 
               {/* ── Mobil Kart Görünümü ── */}
               <div className="lg:hidden divide-y">
-                {filteredModels.map((m) => {
+                {sayfaModelleri.map((m) => {
                   const g = kalanGun(m.termin);
                   return (
                     <div key={m.id} className="p-4 space-y-3 hover:bg-muted/20 transition-colors" data-testid={`card-model-${m.id}`}>
@@ -650,6 +666,51 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                     </div>
                   );
                 })}
+              </div>
+
+              {/* ── Sayfalama Çubuğu ── */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t bg-muted/20 px-4 py-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Sayfa başına</span>
+                  <Select
+                    value={String(sayfaBoyu)}
+                    onValueChange={(v) => { setSayfaBoyu(Number(v)); setSayfa(1); }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px] text-xs" data-testid="sayfa-boyu">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[20, 50, 100].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="tabular-nums">
+                    {basIndex + 1}-{basIndex + sayfaModelleri.length} / {filteredModels.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline" size="sm" className="h-8 text-xs"
+                    disabled={gecerliSayfa <= 1}
+                    onClick={() => setSayfa(gecerliSayfa - 1)}
+                    data-testid="sayfa-onceki"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Önceki
+                  </Button>
+                  <span className="px-2 text-xs text-muted-foreground tabular-nums" data-testid="sayfa-bilgi">
+                    {gecerliSayfa} / {toplamSayfa}
+                  </span>
+                  <Button
+                    variant="outline" size="sm" className="h-8 text-xs"
+                    disabled={gecerliSayfa >= toplamSayfa}
+                    onClick={() => setSayfa(gecerliSayfa + 1)}
+                    data-testid="sayfa-sonraki"
+                  >
+                    Sonraki <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                  </Button>
+                </div>
               </div>
             </>
           )}
