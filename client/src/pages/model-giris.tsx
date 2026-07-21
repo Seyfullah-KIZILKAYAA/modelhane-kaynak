@@ -37,7 +37,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const [yeniKumas, setYeniKumas] = useState("Belirtilmedi");
   const [yeniKumasTarih, setYeniKumasTarih] = useState("");
 
-  // Numune NOT OK sebep dialog
+  // Numune Reddedildi sebep dialog
   const [notOkModel, setNotOkModel] = useState<Model | null>(null);
   const [sebep, setSebep] = useState("");
 
@@ -156,7 +156,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const gecerli = grup && modelKodu && kategori && adet && termin && girenKisi;
 
   function numuneOK(m: Model) {
-    numuneGuncelle.mutate({ id: m.id, numuneDurum: "Numune OK", numuneSebep: "" });
+    numuneGuncelle.mutate({ id: m.id, numuneDurum: "Numune Onaylandı", numuneSebep: "" });
   }
   function numuneNotOkAc(m: Model) {
     setNotOkModel(m);
@@ -373,8 +373,8 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   <SelectContent>
                     <SelectItem value="__all__">Tüm Numune Durumları</SelectItem>
                     <SelectItem value="Bekliyor">Bekliyor</SelectItem>
-                    <SelectItem value="Numune OK">Numune OK</SelectItem>
-                    <SelectItem value="Numune NOT OK">Numune NOT OK</SelectItem>
+                    <SelectItem value="Numune Onaylandı">Numune Onaylandı</SelectItem>
+                    <SelectItem value="Numune Reddedildi">Numune Reddedildi</SelectItem>
                   </SelectContent>
                 </Select>
                 {/* Temizle */}
@@ -514,7 +514,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                               <Badge variant="outline" className={numuneRenk(m.numuneDurum)} data-testid={`badge-numune-${m.id}`}>
                                 {m.numuneDurum}
                               </Badge>
-                              {m.numuneDurum === "Numune NOT OK" && m.numuneSebep && (
+                              {m.numuneDurum === "Numune Reddedildi" && m.numuneSebep && (
                                 <span className="text-xs text-red-600 dark:text-red-400 max-w-[240px]">
                                   Sebep: {m.numuneSebep}
                                 </span>
@@ -526,7 +526,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                                 </Button>
                                 <Button size="sm" variant="ghost" className="h-7 px-2 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
                                   onClick={() => numuneNotOkAc(m)} data-testid={`button-numune-notok-${m.id}`}>
-                                  <XCircle className="w-4 h-4 mr-1" /> NOT OK
+                                  <XCircle className="w-4 h-4 mr-1" /> Reddedildi
                                 </Button>
                                 {m.numuneDurum !== "Bekliyor" && (
                                   <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground"
@@ -657,8 +657,8 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                         )}
                       </div>
 
-                      {/* NOT OK sebebi */}
-                      {m.numuneDurum === "Numune NOT OK" && m.numuneSebep && (
+                      {/* Reddedildi sebebi */}
+                      {m.numuneDurum === "Numune Reddedildi" && m.numuneSebep && (
                         <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-md px-2.5 py-1.5">
                           Sebep: {m.numuneSebep}
                         </p>
@@ -753,12 +753,12 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
         </DialogContent>
       </Dialog>
 
-      {/* ───── Numune NOT OK sebep dialog ───── */}
+      {/* ───── Numune Reddedildi sebep dialog ───── */}
       <Dialog open={!!notOkModel} onOpenChange={(o) => { if (!o) { setNotOkModel(null); setSebep(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <XCircle className="w-5 h-5 text-red-600" /> Numune NOT OK — Sebep
+              <XCircle className="w-5 h-5 text-red-600" /> Numune Reddedildi — Sebep
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
@@ -773,7 +773,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
             <Button
               className="bg-red-600 hover:bg-red-700 text-white"
               disabled={!sebep.trim() || numuneGuncelle.isPending}
-              onClick={() => notOkModel && numuneGuncelle.mutate({ id: notOkModel.id, numuneDurum: "Numune NOT OK", numuneSebep: sebep.trim() })}
+              onClick={() => notOkModel && numuneGuncelle.mutate({ id: notOkModel.id, numuneDurum: "Numune Reddedildi", numuneSebep: sebep.trim() })}
               data-testid="button-numune-kaydet"
             >
               {numuneGuncelle.isPending ? "Kaydediliyor..." : "STOP Olarak Kaydet"}

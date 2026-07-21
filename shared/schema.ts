@@ -9,7 +9,7 @@ export const GROUPS = [
 ] as const;
 
 // Numune durumu
-export const NUMUNE_DURUMLARI = ["Bekliyor", "Numune OK", "Numune NOT OK"] as const;
+export const NUMUNE_DURUMLARI = ["Bekliyor", "Numune Onaylandı", "Numune Reddedildi"] as const;
 
 // Numune cinsi
 export const NUMUNE_CINSLERI = [
@@ -60,8 +60,8 @@ export interface Model {
   termin: string; // ISO tarih YYYY-MM-DD
   girenKisi: string;
   durum: string;
-  numuneDurum: string; // Bekliyor / Numune OK / Numune NOT OK
-  numuneSebep: string; // NOT OK sebebi
+  numuneDurum: string; // Bekliyor / Numune Onaylandı / Numune Reddedildi
+  numuneSebep: string; // Reddedildi sebebi
   numuneCinsi: string; // Fit / PPS / Çekim / Beden Seti / Gold Seal ...
   kumasDurum: string; // Sipariş / Boyahanede / Konfeksiyon Rafta / Hazır
   kumasHazirTarih: string; // ISO tarih YYYY-MM-DD

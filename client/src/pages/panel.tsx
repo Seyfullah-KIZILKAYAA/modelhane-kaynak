@@ -41,8 +41,8 @@ export default function Panel() {
   }).length;
 
   // ── Numune özeti ──
-  const numuneOk = models.filter((m) => m.numuneDurum === "Numune OK").length;
-  const numuneNotOk = models.filter((m) => m.numuneDurum === "Numune NOT OK");
+  const numuneOk = models.filter((m) => m.numuneDurum === "Numune Onaylandı").length;
+  const numuneNotOk = models.filter((m) => m.numuneDurum === "Numune Reddedildi");
   const numuneBekliyor = models.filter((m) => m.numuneDurum === "Bekliyor").length;
 
   // ── Kumaş özeti (aktif modeller) ──
@@ -101,7 +101,7 @@ export default function Panel() {
           <FlaskConical className="w-3.5 h-3.5" /> Numune & Kumaş Özeti
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <Kpi label="Numune OK" value={numuneOk} icon={CheckCircle2} color="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" />
+          <Kpi label="Numune Onaylandı" value={numuneOk} icon={CheckCircle2} color="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" />
           <Kpi label="Numune STOP" value={numuneNotOk.length} icon={XCircle} color="bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" />
           <Kpi label="Numune Bekliyor" value={numuneBekliyor} icon={FlaskConical} color="bg-muted text-muted-foreground" />
           <Kpi label="Kumaş Hazır" value={kumasHazir} icon={CheckCircle2} color="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" />

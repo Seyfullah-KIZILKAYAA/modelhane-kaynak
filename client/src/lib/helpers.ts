@@ -48,9 +48,9 @@ export function durumRenk(durum: string): string {
 // Numune durumu renk
 export function numuneRenk(durum: string): string {
   switch (durum) {
-    case "Numune OK":
+    case "Numune Onaylandı":
       return "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300 border-green-200 dark:border-green-500/30";
-    case "Numune NOT OK":
+    case "Numune Reddedildi":
       return "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300 border-red-200 dark:border-red-500/30";
     default:
       return "bg-muted text-muted-foreground border-border";
