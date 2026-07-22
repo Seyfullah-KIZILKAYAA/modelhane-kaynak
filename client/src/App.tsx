@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { queryClient } from "./lib/queryClient";
+import {
+  queryClient,
+  degisiklikAkisiniBaslat,
+  degisiklikAkisiniDurdur,
+} from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -128,6 +132,8 @@ function App() {
         if (d?.role) {
           setRole(d.role as Role);
           setGrup(d.grup ?? null);
+          // Oturum zaten açık; değişiklik akışını başlat.
+          degisiklikAkisiniBaslat();
         }
       })
       .catch(() => {})
@@ -137,6 +143,8 @@ function App() {
   const handleLogin = (r: Role, g: string | null) => {
     setRole(r);
     setGrup(g);
+    // Oturum açıldı; artık /api/events dinlenebilir.
+    degisiklikAkisiniBaslat();
   };
 
   const handleLogout = async () => {
@@ -145,6 +153,8 @@ function App() {
     } catch {
       // Sunucuya ulaşılamasa da yerel oturumu kapat.
     }
+    // Oturumu olmayan bir akış açık kalmasın.
+    degisiklikAkisiniDurdur();
     // Önceki kullanıcının verisi ekranda kalmasın.
     queryClient.clear();
     setRole(null);

@@ -30,9 +30,38 @@ declare global {
 
 type Stage = "idle" | "available" | "downloading" | "ready" | "error";
 
+/**
+ * Sürüm notlarını güvenli düz metne çevirir.
+ *
+ * electron-updater releaseNotes'u GitHub sürüm açıklamasından alır ve bu
+ * genelde HTML olur (<ul><li>…</li></ul>). Etiketleri olduğu gibi basmak
+ * hem okunmaz görünür hem de dışarıdan gelen içeriği ekrana koymak olur;
+ * bu yüzden etiketleri ayıklayıp satırlara bölüyoruz.
+ */
+function notlariAyikla(raw: string): string[] {
+  if (!raw) return [];
+  return raw
+    // Liste ve satır sonlarını satır ayracına çevir.
+    .replace(/<\/(li|p|div|h\d)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    // Kalan tüm etiketleri at.
+    .replace(/<[^>]*>/g, "")
+    // Sık kullanılan HTML karakter kodları.
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .split("\n")
+    .map((s) => s.replace(/^\s*[-*•]\s*/, "").trim())
+    .filter(Boolean);
+}
+
 export default function UpdateDialog() {
   const [stage, setStage] = useState<Stage>("idle");
   const [version, setVersion] = useState("");
+  const [notlar, setNotlar] = useState<string[]>([]);
   const [percent, setPercent] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -43,6 +72,7 @@ export default function UpdateDialog() {
 
     updater.onUpdateAvailable((info) => {
       setVersion(info.version);
+      setNotlar(notlariAyikla(info.releaseNotes));
       setStage("available");
     });
 
@@ -96,6 +126,25 @@ export default function UpdateDialog() {
                 Uygulamayı şimdi güncellemek ister misiniz?
               </AlertDialogDescription>
             </AlertDialogHeader>
+
+            {/* Sürüm notları — yayında açıklama yazılmışsa gösterilir. */}
+            {notlar.length > 0 && (
+              <div className="rounded-md border bg-muted/40 p-3" data-testid="update-notes">
+                <p className="text-xs font-semibold text-foreground mb-2">
+                  Bu sürümde neler değişti?
+                </p>
+                {/* Uzun listelerde pencere taşmasın. */}
+                <ul className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                  {notlar.map((n, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                      <span className="text-primary shrink-0">•</span>
+                      <span className="break-words">{n}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <AlertDialogFooter>
               <AlertDialogCancel onClick={handleDismiss} data-testid="update-cancel">
                 İptal

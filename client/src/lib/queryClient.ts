@@ -63,7 +63,7 @@ export const getQueryFn: <T>(options: {
  * almadığı için document.visibilityState'i doğrudan dinliyoruz. Amaç boşuna
  * istek atmamak: Supabase ücretsiz planında istek sayısı sınırsız ama aylık
  * 5 GB veri transferi (egress) kotası var; kimsenin bakmadığı bir pencerenin
- * 5 saniyede bir veri çekmesi bu kotayı hızla tüketir.
+ * düzenli veri çekmesi bu kotayı hızla tüketir.
  *
  * Pencere yeniden görünür olduğunda refetchOnWindowFocus devreye girip
  * veriyi anında tazeler — yani gecikme yaşanmaz.
@@ -71,6 +71,68 @@ export const getQueryFn: <T>(options: {
 function isWindowVisible(): boolean {
   if (typeof document === "undefined") return true;
   return document.visibilityState === "visible";
+}
+
+/**
+ * Sunucudan gelen değişiklik bildirimlerini dinler (SSE).
+ *
+ * Sunucu, Supabase Realtime üzerinden "models" tablosunu izler ve gerçekten
+ * bir değişiklik olduğunda buraya sinyal gönderir. Böylece saniyede bir veri
+ * çekmeye gerek kalmaz: boştayken hiç istek gitmez, değişiklik olduğunda ise
+ * güncelleme anında gelir.
+ *
+ * Bağlantı kurulamazsa (sunucu yeni başlıyor, ağ koptu) EventSource kendi
+ * kendine yeniden dener; ayrıca aşağıdaki yedek tazeleme aralığı devreye
+ * girer, yani en kötü durumda eski davranışa düşülür.
+ */
+let eventsBaglandi = false;
+let source: EventSource | null = null;
+
+/**
+ * Akışı başlatır. Giriş yapıldıktan SONRA çağrılmalıdır: /api/events oturum
+ * ister, giriş ekranındayken açılırsa 401 alıp boşuna yeniden bağlanır durur.
+ */
+export function degisiklikAkisiniBaslat(): void {
+  if (typeof window === "undefined" || typeof EventSource === "undefined") return;
+  if (source) return; // Zaten bağlı.
+
+  const es = new EventSource("/api/events", { withCredentials: true });
+  source = es;
+
+  es.addEventListener("ready", () => {
+    eventsBaglandi = true;
+  });
+
+  es.addEventListener("models", () => {
+    // Yalnızca gerçekten değişiklik olduğunda veri çekilir.
+    queryClient.invalidateQueries({ queryKey: ["/api/models"] });
+  });
+
+  es.onerror = () => {
+    // Kopan bağlantıda yedek tazeleme aralığına geri dönülür; EventSource
+    // yeniden bağlanınca "ready" olayı tekrar gelir ve akış devam eder.
+    eventsBaglandi = false;
+  };
+}
+
+/** Çıkışta akışı kapatır — oturumu olmayan bir bağlantı açık kalmasın. */
+export function degisiklikAkisiniDurdur(): void {
+  source?.close();
+  source = null;
+  eventsBaglandi = false;
+}
+
+/**
+ * Yedek tazeleme aralığı.
+ *
+ * Değişiklik akışı çalışıyorsa veri çekmeye gerek yoktur (false). Akış
+ * kopmuşsa veya Supabase panelinde "models" tablosu için Realtime açılmamışsa
+ * 30 saniyede bir tazelenir — eski 5 saniyelik polling'e göre altıda bir
+ * trafik, ama veri yine de bayatlamaz.
+ */
+function yedekTazelemeAraligi(): number | false {
+  if (!isWindowVisible()) return false;
+  return eventsBaglandi ? false : 30_000;
 }
 
 // Görünürlük değişimini React Query'ye bildir. Bu olmadan pencere yeniden
@@ -86,12 +148,16 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      // Tüm bilgisayarlar arasında 5 saniyede bir otomatik senkronizasyon.
+      // Senkronizasyon artık sunucudan gelen değişiklik bildirimleriyle olur;
+      // bu aralık yalnızca bildirim akışı çalışmadığında devreye giren yedektir.
       // Pencere gizliyse durur (false döndürmek interval'i askıya alır).
-      refetchInterval: () => (isWindowVisible() ? 5000 : false),
+      refetchInterval: yedekTazelemeAraligi,
       refetchIntervalInBackground: false, // Arka planda interval çalışmasın
       refetchOnWindowFocus: true, // Uygulama penceresine odaklanıldığında anında güncelle
-      staleTime: 3000,
+      // Değişiklik bildirimi geldiğinde veri gerçekten yeniden çekilmeli.
+      // Bir bekleme süresi bırakılırsa arka arkaya gelen iki değişiklikten
+      // ikincisi yutulabilir; bildirimler zaten seyrek olduğu için 0 uygun.
+      staleTime: 0,
       retry: false,
     },
     mutations: {

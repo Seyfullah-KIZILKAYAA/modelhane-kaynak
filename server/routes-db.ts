@@ -5,6 +5,7 @@ import { ensureDatabase, ensureTables, getSetupStatus } from "./mssql-schema";
 import { getConfig, updateConfig, configPath, type DbProvider } from "./config";
 import { getSupabaseSettings, testSupabase, resetSupabase } from "./supabase";
 import { resetStorage } from "./storage";
+import { restartRealtime, stopRealtime } from "./realtime";
 import { transferOnizle, transferYap } from "./transfer";
 import { requireAdmin, requireAuth, rateLimit } from "./auth";
 import { getPermissions, savePermissions } from "./permissions";
@@ -154,6 +155,10 @@ export function registerDbRoutes(app: Express): void {
     updateConfig({ dbProvider: provider });
     // Sonraki istekler yeni kaynağa gitsin.
     resetStorage();
+    // Supabase'e geçildiyse değişiklik aboneliğini kur; MSSQL'e geçildiyse
+    // gereksiz WebSocket'i kapat.
+    if (provider === "supabase") restartRealtime();
+    else stopRealtime();
 
     res.json({
       ok: true,
@@ -176,6 +181,8 @@ export function registerDbRoutes(app: Express): void {
     updateConfig({ supabase: { url: parsed.data.url.trim(), key } });
     resetSupabase();
     resetStorage();
+    // Yeni bağlantı bilgileriyle aboneliği baştan kur.
+    restartRealtime();
 
     res.json({
       ok: true,

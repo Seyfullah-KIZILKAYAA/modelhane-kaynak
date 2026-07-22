@@ -21,6 +21,9 @@ export const NUMUNE_CINSLERI = [
   "Gold Seal",
   "Salt / Yıkama Numunesi",
   "Onay Numunesi",
+  "Satış Numunesi",
+  "Test Numunesi",
+  "Koleksiyon Numunesi",
   "Diğer",
 ] as const;
 
@@ -45,6 +48,7 @@ export const CATEGORIES = [
   "Ceket",
   "Yelek",
   "Body / Zıbın",
+  "Alt Üst Takım",
   "Diğer",
 ] as const;
 

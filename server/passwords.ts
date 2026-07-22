@@ -62,8 +62,16 @@ export function verifyPassword(plain: string, stored: string): boolean {
 
 // --- Depo --------------------------------------------------------------
 
-/** app_passwords tablosu kullanılabilir mi? */
+/**
+ * app_passwords tablosu kullanılabilir mi?
+ *
+ * Aktif kaynak Supabase ise SQL Server'a hiç bağlanılmaz. Bu kontrol olmadan
+ * her giriş denemesi yapılandırılmamış SQL Server'a bağlanmayı deniyor ve
+ * connectionTimeout (15 sn) dolana kadar bekliyordu — kullanıcı her açılışta
+ * 15 saniye giriş ekranında kalıyordu.
+ */
 async function tableReady(): Promise<boolean> {
+  if (getConfig().dbProvider !== "mssql") return false;
   try {
     const pool = await getPool();
     const r = await pool
