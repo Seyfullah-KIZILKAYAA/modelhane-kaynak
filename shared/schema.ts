@@ -110,8 +110,48 @@ export const updateKumasSchema = z.object({
   kumasNot: z.string().default(""),
 });
 
+export const updateModelSchema = z.object({
+  grup: z.string().min(1),
+  kategori: z.string().min(1),
+  adet: z.number().int().positive(),
+  termin: z.string().min(1),
+  modelKodu: z.string().min(1),
+  girenKisi: z.string().min(1),
+  durum: z.enum(STATUSES),
+  numuneCinsi: z.enum(NUMUNE_CINSLERI),
+  numuneDurum: z.enum(NUMUNE_DURUMLARI),
+  numuneSebep: z.string().default(""),
+  kumasDurum: z.enum(KUMAS_ASAMALARI),
+  kumasHazirTarih: z.string().default(""),
+  kumasNot: z.string().default(""),
+});
+export type UpdateModel = z.infer<typeof updateModelSchema>;
+
 // --- Kimlik (basit rol tabanlı şifre) ---
 export const loginSchema = z.object({
   password: z.string().min(1),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// --- Kullanıcı Ayar & Sayfa Yetkileri ---
+export interface UserPermissions {
+  userCanAccessTheme: boolean;
+  userCanAccessDb: boolean;
+  userCanAccessSecurity: boolean;
+  userCanDeleteModels: boolean;
+}
+
+export const DEFAULT_PERMISSIONS: UserPermissions = {
+  userCanAccessTheme: true,
+  userCanAccessDb: false,
+  userCanAccessSecurity: false,
+  userCanDeleteModels: false,
+};
+
+export const updatePermissionsSchema = z.object({
+  userCanAccessTheme: z.boolean().default(true),
+  userCanAccessDb: z.boolean().default(false),
+  userCanAccessSecurity: z.boolean().default(false),
+  userCanDeleteModels: z.boolean().default(false),
+});
+

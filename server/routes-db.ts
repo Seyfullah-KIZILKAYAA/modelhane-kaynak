@@ -2,8 +2,13 @@ import type { Express } from "express";
 import { z } from "zod";
 import { getSettings, testConnection, closePool, friendlyError } from "./mssql";
 import { ensureDatabase, ensureTables, getSetupStatus } from "./mssql-schema";
-import { getConfig, updateConfig, configPath } from "./config";
-import { requireAdmin, rateLimit } from "./auth";
+import { getConfig, updateConfig, configPath, type DbProvider } from "./config";
+import { getSupabaseSettings, testSupabase, resetSupabase } from "./supabase";
+import { resetStorage } from "./storage";
+import { transferOnizle, transferYap } from "./transfer";
+import { requireAdmin, requireAuth, rateLimit } from "./auth";
+import { getPermissions, savePermissions } from "./permissions";
+import { updatePermissionsSchema } from "@shared/schema";
 import {
   listEntries,
   setPassword,
@@ -26,6 +31,19 @@ const connectionSchema = z.object({
   trustServerCertificate: z.boolean().default(true),
 });
 
+const providerSchema = z.enum(["mssql", "supabase"]);
+
+const supabaseSchema = z.object({
+  url: z.string().url("Geçerli bir Supabase proje URL'i girin"),
+  // Boş bırakılırsa mevcut anahtar korunur.
+  key: z.string().default(""),
+});
+
+const transferSchema = z.object({
+  kaynak: providerSchema,
+  hedef: providerSchema,
+});
+
 export function registerDbRoutes(app: Express): void {
   // Bu bölümdeki tüm uçlar yönetici yetkisi ister — kurtarma uçları hariç
   // (onlar aşağıda ayrıca tanımlanır, çünkü giriş yapılamadığında kullanılır).
@@ -37,6 +55,8 @@ export function registerDbRoutes(app: Express): void {
 
     const payload: any = {
       configPath: configPath(),
+      dbProvider: cfg.dbProvider,
+      supabase: getSupabaseSettings(),
       settings: {
         server: s.server,
         port: s.port,
@@ -56,17 +76,22 @@ export function registerDbRoutes(app: Express): void {
         ok: false,
         message: "SQL Server bağlantı bilgileri girilmemiş. Formu doldurup kaydedin.",
       };
-      return res.json(payload);
-    }
-
-    payload.connection = await testConnection();
-    if (payload.connection.ok) {
-      try {
-        payload.setup = await getSetupStatus();
-      } catch {
-        // Kurulum durumu okunamazsa bağlantı bilgisi yine de dönsün.
+    } else {
+      payload.connection = await testConnection();
+      if (payload.connection.ok) {
+        try {
+          payload.setup = await getSetupStatus();
+        } catch {
+          // Kurulum durumu okunamazsa bağlantı bilgisi yine de dönsün.
+        }
       }
     }
+
+    // Supabase durumu — seçim ekranında iki kaynağın da durumu görünsün.
+    payload.supabaseConnection = payload.supabase.configured
+      ? await testSupabase()
+      : { ok: false, message: "Supabase bilgileri girilmemiş." };
+
     res.json(payload);
   });
 
@@ -105,6 +130,106 @@ export function registerDbRoutes(app: Express): void {
   app.post("/api/db/test", requireAdmin, async (_req, res) => {
     await closePool();
     res.json(await testConnection());
+  });
+
+  // ===================== VERİTABANI SEÇİMİ =====================
+
+  // --- Aktif veritabanını seç (mssql / supabase) ---
+  app.post("/api/db/provider", requireAdmin, async (req, res) => {
+    const parsed = z.object({ provider: providerSchema }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "Geçersiz veritabanı seçimi." });
+    }
+    const provider: DbProvider = parsed.data.provider;
+
+    // Seçilen kaynağın bağlantısı yoksa kullanıcı veri göremez; peşinen uyar.
+    const kontrol = provider === "supabase" ? await testSupabase() : await testConnection();
+    if (!kontrol.ok) {
+      return res.status(400).json({
+        ok: false,
+        message: `${provider === "supabase" ? "Supabase" : "SQL Server"} bağlantısı kurulamadı: ${kontrol.message}`,
+      });
+    }
+
+    updateConfig({ dbProvider: provider });
+    // Sonraki istekler yeni kaynağa gitsin.
+    resetStorage();
+
+    res.json({
+      ok: true,
+      message: `Aktif veritabanı "${provider === "supabase" ? "Supabase" : "SQL Server"}" olarak ayarlandı.`,
+      provider,
+      connection: kontrol,
+    });
+  });
+
+  // --- Supabase bağlantı bilgilerini kaydet ---
+  app.post("/api/db/supabase", requireAdmin, async (req, res) => {
+    const parsed = supabaseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: parsed.error.errors[0]?.message ?? "Geçersiz veri" });
+    }
+    const current = getConfig();
+    // Anahtar alanı boşsa mevcut anahtarı koru (form onu göstermiyor).
+    const key = parsed.data.key ? parsed.data.key.trim() : current.supabase.key;
+
+    updateConfig({ supabase: { url: parsed.data.url.trim(), key } });
+    resetSupabase();
+    resetStorage();
+
+    res.json({
+      ok: true,
+      message: "Supabase bağlantı bilgileri kaydedildi.",
+      connection: await testSupabase(),
+    });
+  });
+
+  // --- Supabase bağlantısını test et ---
+  app.post("/api/db/supabase/test", requireAdmin, async (_req, res) => {
+    resetSupabase();
+    res.json(await testSupabase());
+  });
+
+  // ===================== VERİ AKTARIMI =====================
+
+  // --- Önizleme: ne aktarılacak, ne atlanacak (hiçbir şey yazılmaz) ---
+  app.post("/api/db/transfer/preview", requireAdmin, async (req, res) => {
+    const parsed = transferSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "Kaynak ve hedef veritabanı seçilmeli." });
+    }
+    const { kaynak, hedef } = parsed.data;
+    if (kaynak === hedef) {
+      return res.status(400).json({ ok: false, message: "Kaynak ve hedef veritabanı aynı olamaz." });
+    }
+
+    try {
+      res.json({ ok: true, onizleme: await transferOnizle(kaynak, hedef) });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, message: friendlyError(err) });
+    }
+  });
+
+  // --- Aktarımı çalıştır: sadece hedefte olmayan kayıtlar yazılır ---
+  app.post("/api/db/transfer/run", requireAdmin, async (req, res) => {
+    const parsed = transferSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "Kaynak ve hedef veritabanı seçilmeli." });
+    }
+    const { kaynak, hedef } = parsed.data;
+    if (kaynak === hedef) {
+      return res.status(400).json({ ok: false, message: "Kaynak ve hedef veritabanı aynı olamaz." });
+    }
+
+    try {
+      const sonuc = await transferYap(kaynak, hedef);
+      const mesaj = sonuc.aktarilan === 0 && sonuc.aktarilacak === 0
+        ? "Aktarılacak yeni kayıt yok — hedef zaten güncel."
+        : `${sonuc.aktarilan} kayıt aktarıldı, ${sonuc.atlanacak} kayıt zaten mevcut olduğu için atlandı.`;
+      res.json({ ok: sonuc.hatalar.length === 0, message: mesaj, sonuc });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, message: friendlyError(err) });
+    }
   });
 
   // --- Veritabanını oluştur ---
@@ -237,4 +362,27 @@ export function registerDbRoutes(app: Express): void {
       }
     },
   );
+
+  // ===================== KULLANICI YETKİLERİ =====================
+  app.get("/api/settings/permissions", requireAuth, async (_req, res) => {
+    try {
+      const perms = await getPermissions();
+      res.json({ ok: true, permissions: perms });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, message: friendlyError(err) });
+    }
+  });
+
+  app.post("/api/settings/permissions", requireAdmin, async (req, res) => {
+    const parsed = updatePermissionsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: parsed.error.errors[0]?.message ?? "Geçersiz yetki verisi" });
+    }
+    try {
+      const updated = await savePermissions(parsed.data);
+      res.json({ ok: true, message: "Kullanıcı yetkileri başarıyla güncellendi.", permissions: updated });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, message: friendlyError(err) });
+    }
+  });
 }

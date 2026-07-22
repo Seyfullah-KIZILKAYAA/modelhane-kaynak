@@ -1,4 +1,4 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient, QueryFunction, focusManager } from "@tanstack/react-query";
 
 /**
  * Tüm veri erişimi Express sunucusu üzerinden gider.
@@ -55,13 +55,43 @@ export const getQueryFn: <T>(options: {
     return (await res.json()) as any;
   };
 
+/**
+ * Pencere gizliyken (simge durumuna küçültülmüş / arka planda) otomatik
+ * yenilemeyi durdurur.
+ *
+ * React Query'nin kendi odak yönetimi Electron'da her zaman doğru sinyal
+ * almadığı için document.visibilityState'i doğrudan dinliyoruz. Amaç boşuna
+ * istek atmamak: Supabase ücretsiz planında istek sayısı sınırsız ama aylık
+ * 5 GB veri transferi (egress) kotası var; kimsenin bakmadığı bir pencerenin
+ * 5 saniyede bir veri çekmesi bu kotayı hızla tüketir.
+ *
+ * Pencere yeniden görünür olduğunda refetchOnWindowFocus devreye girip
+ * veriyi anında tazeler — yani gecikme yaşanmaz.
+ */
+function isWindowVisible(): boolean {
+  if (typeof document === "undefined") return true;
+  return document.visibilityState === "visible";
+}
+
+// Görünürlük değişimini React Query'ye bildir. Bu olmadan pencere yeniden
+// açıldığında interval'in yeniden değerlendirilmesi gecikebiliyor; odak
+// bildirimi hem interval'i geri başlatır hem de refetchOnWindowFocus'u tetikler.
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    focusManager.setFocused(isWindowVisible());
+  });
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      // Tüm bilgisayarlar arasında 5 saniyede bir otomatik senkronizasyon.
+      // Pencere gizliyse durur (false döndürmek interval'i askıya alır).
+      refetchInterval: () => (isWindowVisible() ? 5000 : false),
+      refetchIntervalInBackground: false, // Arka planda interval çalışmasın
+      refetchOnWindowFocus: true, // Uygulama penceresine odaklanıldığında anında güncelle
+      staleTime: 3000,
       retry: false,
     },
     mutations: {

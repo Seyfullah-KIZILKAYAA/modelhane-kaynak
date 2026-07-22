@@ -13,5 +13,12 @@ data.db-journal
 .env.*
 !.env.example
 
+# Gömülü Supabase bağlantı bilgileri — depo public, anahtar buraya girmemeli.
+# Yerelde kalır ve build sırasında exe'ye gömülür.
+# Yeni bir makinede kurmak için: örnek dosyayı kopyalayıp
+#   npx tsx script/embed-supabase.ts
+server/embedded-config.ts
+!server/embedded-config.example.ts
+
 *.log
 .DS_Store

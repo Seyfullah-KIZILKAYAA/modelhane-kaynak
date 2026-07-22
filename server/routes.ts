@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { registerDbRoutes } from "./routes-db";
 import { setupSession, requireAuth, requireAdmin, rateLimit } from "./auth";
 import { checkLogin } from "./passwords";
-import { insertModelSchema, updateStatusSchema, updateSiraSchema, updateNumuneSchema, updateNumuneCinsiSchema, updateKumasSchema, loginSchema } from "@shared/schema";
+import { insertModelSchema, updateStatusSchema, updateSiraSchema, updateNumuneSchema, updateNumuneCinsiSchema, updateKumasSchema, loginSchema, updateModelSchema } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -127,6 +127,16 @@ export async function registerRoutes(
     const ok = await storage.deleteModel(Number(req.params.id));
     if (!ok) return res.status(404).json({ error: "Model bulunamadı" });
     res.json({ success: true });
+  });
+
+  // --- Tüm model verilerini güncelle (yönetici) ---
+  app.patch("/api/models/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const parsed = updateModelSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Geçersiz veriler" });
+    const updated = await storage.updateModel(id, parsed.data);
+    if (!updated) return res.status(404).json({ error: "Model bulunamadı" });
+    res.json(updated);
   });
 
   return httpServer;

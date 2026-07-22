@@ -1,4 +1,4 @@
-import type { Model, InsertModel } from "@shared/schema";
+import type { Model, InsertModel, UpdateModel } from "@shared/schema";
 import type { IStorage } from "./storage";
 import { getPool, sql } from "./mssql";
 
@@ -128,6 +128,24 @@ export class SqlServerStorage implements IStorage {
       { col: "kumas_durum", type: sql.NVarChar(100), value: kumasDurum },
       { col: "kumas_hazir_tarih", type: sql.NVarChar(20), value: kumasHazirTarih },
       { col: "kumas_not", type: sql.NVarChar(sql.MAX), value: kumasNot },
+    ]);
+  }
+
+  async updateModel(id: number, m: UpdateModel): Promise<Model | undefined> {
+    return this.updateFields(id, [
+      { col: "grup", type: sql.NVarChar(100), value: m.grup },
+      { col: "model_kodu", type: sql.NVarChar(200), value: m.modelKodu },
+      { col: "kategori", type: sql.NVarChar(100), value: m.kategori },
+      { col: "adet", type: sql.Int, value: m.adet },
+      { col: "termin", type: sql.NVarChar(20), value: m.termin },
+      { col: "giren_kisi", type: sql.NVarChar(200), value: m.girenKisi },
+      { col: "durum", type: sql.NVarChar(50), value: m.durum },
+      { col: "numune_cinsi", type: sql.NVarChar(100), value: m.numuneCinsi },
+      { col: "numune_durum", type: sql.NVarChar(50), value: m.numuneDurum },
+      { col: "numune_sebep", type: sql.NVarChar(sql.MAX), value: m.numuneSebep },
+      { col: "kumas_durum", type: sql.NVarChar(100), value: m.kumasDurum },
+      { col: "kumas_hazir_tarih", type: sql.NVarChar(20), value: m.kumasHazirTarih },
+      { col: "kumas_not", type: sql.NVarChar(sql.MAX), value: m.kumasNot },
     ]);
   }
 

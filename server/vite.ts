@@ -33,6 +33,9 @@ export async function setupVite(server: Server, app: Express) {
 
   app.use("/{*path}", async (req, res, next) => {
     const url = req.originalUrl;
+    if (url.startsWith("/api")) {
+      return res.status(404).json({ error: "Uç nokta bulunamadı" });
+    }
 
     try {
       const clientTemplate = path.resolve(

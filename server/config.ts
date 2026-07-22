@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
+import { EMBEDDED_SUPABASE, hasEmbeddedSupabase } from "./embedded-config";
 
 /**
  * Uygulama ayarlarının kalıcı deposu.
@@ -32,15 +33,38 @@ export interface MssqlConfig {
   trustServerCertificate: boolean;
 }
 
+export interface SupabaseConfig {
+  url: string;
+  /** service_role anahtarı — sunucu tarafında kalır, tarayıcıya asla gönderilmez. */
+  key: string;
+}
+
+/** Aktif veri kaynağı. */
+export type DbProvider = "mssql" | "supabase";
+
+import { UserPermissions, DEFAULT_PERMISSIONS } from "@shared/schema";
+
 export interface AppConfig {
+  /** Uygulamanın hangi veritabanını kullanacağı. */
+  dbProvider: DbProvider;
   mssql: MssqlConfig;
+  supabase: SupabaseConfig;
   /** Yönetici şifresi unutulursa kullanılan kurtarma PIN'i (hash'li). */
   recoveryPinHash: string | null;
   /** Oturum çerezlerini imzalamak için üretilen gizli anahtar. */
   sessionSecret: string;
+  /** Kullanıcı yetkileri (grup kullanıcıları için). */
+  userPermissions?: UserPermissions;
 }
 
 const DEFAULTS: AppConfig = {
+  // Yeni kurulumlar Supabase ile başlar; kurulum ekranında doğrudan görünür.
+  // MSSQL'e geçmek isteyen ayarlar ekranından seçebilir.
+  dbProvider: "supabase",
+  supabase: {
+    url: "",
+    key: "",
+  },
   mssql: {
     server: "",
     port: 1433,
@@ -53,6 +77,7 @@ const DEFAULTS: AppConfig = {
   },
   recoveryPinHash: null,
   sessionSecret: "",
+  userPermissions: DEFAULT_PERMISSIONS,
 };
 
 function configDir(): string {
@@ -121,7 +146,18 @@ function readFile(): AppConfig {
     return {
       ...DEFAULTS,
       ...raw,
+      // Eski config.json'larda bu alanlar yok; varsayılana düşülmeli.
+      // (...raw yayılımı eksik/null değerlerle DEFAULTS'u ezebiliyor.)
+      //
+      // Daha önce açıkça bir seçim yapılmışsa ona saygı gösterilir; alan hiç
+      // yoksa (eski kurulum) DEFAULTS devreye girer. Bilinmeyen bir değer
+      // gelirse de varsayılana düşülür.
+      dbProvider:
+        raw.dbProvider === "supabase" || raw.dbProvider === "mssql"
+          ? raw.dbProvider
+          : DEFAULTS.dbProvider,
       mssql: { ...DEFAULTS.mssql, ...(raw.mssql ?? {}) },
+      supabase: { ...DEFAULTS.supabase, ...(raw.supabase ?? {}) },
     };
   } catch {
     // Bozuk dosya uygulamayı kilitlemesin.
@@ -147,6 +183,21 @@ export function getConfig(): AppConfig {
 
   const c = structuredClone(_cache);
   c.mssql.password = decryptSecret(c.mssql.password);
+  c.supabase.key = decryptSecret(c.supabase.key);
+
+  // Supabase bilgileri config'te yoksa .env'e düş.
+  if (!c.supabase.url && process.env.SUPABASE_URL) {
+    c.supabase.url = process.env.SUPABASE_URL;
+    c.supabase.key = process.env.SUPABASE_KEY || "";
+  }
+
+  // Hâlâ boşsa uygulamaya gömülü varsayılana düş. Böylece yeni bir bilgisayara
+  // kurulduğunda kullanıcı hiçbir bilgi girmeden doğrudan bağlanır.
+  // (Paketlenmiş exe'de .env bulunmadığı için bu katman gerekli.)
+  if (!c.supabase.url && hasEmbeddedSupabase()) {
+    c.supabase.url = EMBEDDED_SUPABASE.url;
+    c.supabase.key = EMBEDDED_SUPABASE.key;
+  }
 
   // config.json boşsa .env'e düş (geriye dönük uyumluluk).
   if (!c.mssql.server && process.env.MSSQL_SERVER) {
@@ -175,6 +226,12 @@ export function writeConfig(next: AppConfig): void {
         ? next.mssql.password
         : encryptSecret(next.mssql.password),
     },
+    supabase: {
+      ...next.supabase,
+      key: next.supabase.key.startsWith(ENC_PREFIX)
+        ? next.supabase.key
+        : encryptSecret(next.supabase.key),
+    },
   };
 
   fs.writeFileSync(configPath(), JSON.stringify(toStore, null, 2), "utf8");
@@ -188,6 +245,7 @@ export function updateConfig(patch: Partial<AppConfig>): AppConfig {
     ...current,
     ...patch,
     mssql: { ...current.mssql, ...(patch.mssql ?? {}) },
+    supabase: { ...current.supabase, ...(patch.supabase ?? {}) },
   };
   writeConfig(next);
   return getConfig();

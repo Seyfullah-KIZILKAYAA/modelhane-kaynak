@@ -78,7 +78,7 @@ export default function Panel() {
     .slice(0, 5);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="w-full max-w-[98%] mx-auto p-4 md:p-6 space-y-6">
 
       {/* ───── Üretim Durumu KPI ───── */}
       <div>
@@ -209,7 +209,7 @@ export default function Panel() {
             {kumasBekleyen.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">Tüm aktif modellerin kumaşı hazır veya bilgi girilmedi.</p>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
                 {kumasBekleyen.map((m) => (
                   <div key={m.id} className="flex items-start justify-between text-sm border-b pb-2.5 last:border-0 last:pb-0 gap-3" data-testid={`row-kumas-${m.id}`}>
                     <div className="min-w-0 flex-1">
@@ -246,7 +246,7 @@ export default function Panel() {
             {numuneNotOk.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">STOP verilen numune yok.</p>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
                 {numuneNotOk.map((m) => (
                   <div key={m.id} className="border-b pb-2.5 last:border-0 last:pb-0" data-testid={`row-stop-${m.id}`}>
                     <div className="flex items-center gap-2 text-sm">

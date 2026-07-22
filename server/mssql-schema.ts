@@ -107,6 +107,16 @@ export async function ensureTables(): Promise<{ models: boolean; passwords: bool
     )
   `);
 
+  // Genel uygulama ve kullanıcı yetki ayarları tablosu
+  await pool.request().query(`
+    IF OBJECT_ID('dbo.app_settings', 'U') IS NULL
+    CREATE TABLE dbo.app_settings (
+      [key]          NVARCHAR(100) NOT NULL PRIMARY KEY,
+      value          NVARCHAR(MAX) NOT NULL,
+      updated_at     BIGINT        NOT NULL
+    )
+  `);
+
   return { models: !hadModels, passwords: !hadPasswords };
 }
 
