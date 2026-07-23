@@ -1,0 +1,152 @@
+[
+  {
+    "id": 39,
+    "model_kodu": "VAREN",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 40,
+    "model_kodu": "ORVEN",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 41,
+    "model_kodu": "DUKI",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 44,
+    "model_kodu": "KYREN",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 46,
+    "model_kodu": "NOAR",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 3,
+    "model_kodu": "GRAFFİ",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 52,
+    "model_kodu": "LUCEN",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 55,
+    "model_kodu": "ROMEO",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 56,
+    "model_kodu": "DAMIANO",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 57,
+    "model_kodu": "GRATEFUL",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 59,
+    "model_kodu": "PATRICK",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 60,
+    "model_kodu": "AROSA",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 61,
+    "model_kodu": "SALVATORE",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 1,
+    "model_kodu": "DEREK",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 64,
+    "model_kodu": "KYRO",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 70,
+    "model_kodu": "LAURENT",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 65,
+    "model_kodu": "RYEL",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 51,
+    "model_kodu": "JURO",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 68,
+    "model_kodu": "NOX",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 67,
+    "model_kodu": "DISTRICT",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 71,
+    "model_kodu": "ELION",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 73,
+    "model_kodu": "CEREMINO",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 74,
+    "model_kodu": "NORVAILLE",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 69,
+    "model_kodu": "AXTON",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 79,
+    "model_kodu": "NOCTIS",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 81,
+    "model_kodu": "RONAN",
+    "numune_durum": "Numune NOT OK"
+  },
+  {
+    "id": 133,
+    "model_kodu": "OLENDE",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 139,
+    "model_kodu": "OAKLEY",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 144,
+    "model_kodu": "MARYA",
+    "numune_durum": "Numune OK"
+  },
+  {
+    "id": 149,
+    "model_kodu": "KONTROL",
+    "numune_durum": "Numune OK"
+  }
+]

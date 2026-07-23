@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { GROUPS, CATEGORIES, STATUSES, NUMUNE_CINSLERI, NUMUNE_DURUMLARI, KUMAS_ASAMALARI } from "@shared/schema";
+import { GROUPS, CATEGORIES, DIGER_KATEGORI, STATUSES, NUMUNE_CINSLERI, NUMUNE_DURUMLARI, KUMAS_ASAMALARI } from "@shared/schema";
 import type { Model } from "@shared/schema";
 import { durumRenk, trTarih, kalanGun, terminRenk, numuneRenk, kumasRenk } from "@/lib/helpers";
 import {
@@ -32,6 +32,9 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const [grup, setGrup] = useState(sabitGrup ?? "");
   const [modelKodu, setModelKodu] = useState("");
   const [kategori, setKategori] = useState("");
+  // "Diğer" seçildiğinde elle yazılan kategori adı
+  const [kategoriDiger, setKategoriDiger] = useState("");
+  const kategoriDegeri = kategori === DIGER_KATEGORI ? kategoriDiger.trim() : kategori;
   const [adet, setAdet] = useState("");
   const [termin, setTermin] = useState("");
   const [girenKisi, setGirenKisi] = useState("");
@@ -89,7 +92,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const zorunluAlanlar = [
     { key: "grup", label: "Grup", dolumu: !!grup },
     { key: "modelKodu", label: "Model Kodu", dolumu: !!modelKodu.trim() },
-    { key: "kategori", label: "Kategori", dolumu: !!kategori },
+    { key: "kategori", label: "Kategori", dolumu: !!kategoriDegeri },
     { key: "adet", label: "Adet", dolumu: !!adet && Number(adet) > 0 },
     { key: "termin", label: "Termin Tarihi", dolumu: !!termin },
     { key: "girenKisi", label: "Giren Kişi", dolumu: !!girenKisi.trim() },
@@ -101,6 +104,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
     if (!grupKilitli) setGrup("");
     setModelKodu("");
     setKategori("");
+    setKategoriDiger("");
     setAdet("");
     setTermin("");
     setNumuneCinsi("Belirtilmedi");
@@ -139,12 +143,18 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
     durum: "Beklemede", numuneCinsi: "Belirtilmedi", numuneDurum: "Bekliyor",
     numuneSebep: "", kumasDurum: "Belirtilmedi", kumasHazirTarih: "", kumasNot: "",
   });
+  // Düzenlemede "Diğer" seçilince elle yazılan kategori
+  const [eKategoriDiger, setEKategoriDiger] = useState("");
+  const eKategoriDegeri = eForm.kategori === DIGER_KATEGORI ? eKategoriDiger.trim() : eForm.kategori;
 
   function duzenlemeAc(m: Model) {
+    // Listede olmayan (elle yazılmış) kategoriler "Diğer" + serbest metin olarak açılır
+    const listede = (CATEGORIES as readonly string[]).includes(m.kategori);
+    setEKategoriDiger(listede ? "" : m.kategori);
     setEForm({
       grup: m.grup,
       modelKodu: m.modelKodu,
-      kategori: m.kategori,
+      kategori: listede ? m.kategori : DIGER_KATEGORI,
       adet: String(m.adet),
       termin: m.termin,
       girenKisi: m.girenKisi,
@@ -177,6 +187,13 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
     return (v: T) => { setter(v); setSayfa(1); };
   }
 
+  // Sabit liste + "Diğer" ile elle yazılmış kategoriler (kayıtlardan toplanır)
+  const filtreKategorileri = useMemo(() => {
+    const set = new Set<string>(CATEGORIES as readonly string[]);
+    models.forEach((m) => m.kategori?.trim() && set.add(m.kategori.trim()));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
+  }, [models]);
+
   const filtrelerAktif = fArama || fGrup !== "__all__" || fKategori !== "__all__" || fDurum !== "__all__" || fNumune !== "__all__";
 
   const filteredModels = models.filter((m) => {
@@ -205,7 +222,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const ekle = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", "/api/models", {
-        grup, modelKodu, kategori, adet: Number(adet), termin, girenKisi, numuneCinsi,
+        grup, modelKodu, kategori: kategoriDegeri, adet: Number(adet), termin, girenKisi, numuneCinsi,
         kumasDurum: yeniKumas, kumasHazirTarih: yeniKumasTarih, kumasNot: "",
       });
     },
@@ -215,7 +232,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
       if (girenKisi.trim()) {
         kaydetGirenKisiGecmis(girenKisi.trim());
       }
-      setModelKodu(""); setKategori(""); setAdet(""); setTermin(""); setNumuneCinsi("Belirtilmedi");
+      setModelKodu(""); setKategori(""); setKategoriDiger(""); setAdet(""); setTermin(""); setNumuneCinsi("Belirtilmedi");
       setYeniKumas("Belirtilmedi"); setYeniKumasTarih("");
     },
     onError: (e: Error) => {
@@ -281,7 +298,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   });
 
   const grupKilitli = !isYonetici && !!sabitGrup;
-  const gecerli = grup && modelKodu && kategori && adet && termin && girenKisi;
+  const gecerli = grup && modelKodu && kategoriDegeri && adet && termin && girenKisi;
 
   function numuneOkAc(m: Model) {
     setOkModel(m);
@@ -407,12 +424,21 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                 <label className="text-sm font-medium flex items-center gap-1.5">
                   <Shirt className="w-3.5 h-3.5 text-primary/70" /> Ürün Kategorisi <span className="text-red-500 font-bold">*</span>
                 </label>
-                <Select value={kategori} onValueChange={setKategori}>
+                <Select value={kategori} onValueChange={(v) => { setKategori(v); if (v !== DIGER_KATEGORI) setKategoriDiger(""); }}>
                   <SelectTrigger data-testid="select-kategori"><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {kategori === DIGER_KATEGORI && (
+                  <Input
+                    value={kategoriDiger}
+                    onChange={(e) => setKategoriDiger(e.target.value)}
+                    placeholder="Kategori adını yazın"
+                    autoFocus
+                    data-testid="input-kategori-diger"
+                  />
+                )}
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium flex items-center gap-1.5">
@@ -613,7 +639,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">Tüm Kategoriler</SelectItem>
-                    {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {filtreKategorileri.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 {/* Durum */}
@@ -1252,7 +1278,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                 data: {
                   grup: eForm.grup,
                   modelKodu: eForm.modelKodu.trim(),
-                  kategori: eForm.kategori,
+                  kategori: eKategoriDegeri,
                   adet: Number(eForm.adet),
                   termin: eForm.termin,
                   girenKisi: eForm.girenKisi.trim(),
@@ -1288,12 +1314,21 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Kategori</label>
-                    <Select value={eForm.kategori} onValueChange={eDegis("kategori")}>
+                    <Select value={eForm.kategori} onValueChange={(v) => { eDegis("kategori")(v); if (v !== DIGER_KATEGORI) setEKategoriDiger(""); }}>
                       <SelectTrigger data-testid="edit-kategori"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {eForm.kategori === DIGER_KATEGORI && (
+                      <Input
+                        value={eKategoriDiger}
+                        onChange={(e) => setEKategoriDiger(e.target.value)}
+                        placeholder="Kategori adını yazın"
+                        required
+                        data-testid="edit-kategori-diger"
+                      />
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Adet</label>

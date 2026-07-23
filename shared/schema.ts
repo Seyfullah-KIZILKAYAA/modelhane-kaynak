@@ -49,8 +49,22 @@ export const CATEGORIES = [
   "Yelek",
   "Body / Zıbın",
   "Alt Üst Takım",
+  "Alt-Üst Set",
+  "Alt-Üst-Şort",
+  "Atlet",
+  "Bluz",
+  "Bluz + Etek Set",
+  "Büstiyer",
+  "Crop",
+  "Gömlek",
+  "Hırka",
+  "Straplez",
+  "Tulum",
   "Diğer",
 ] as const;
+
+// "Diğer" seçilince kullanıcı kendi kategorisini yazar; bu değer listede olmayabilir.
+export const DIGER_KATEGORI = "Diğer";
 
 export const STATUSES = ["Beklemede", "Dikimde", "Tamamlandı"] as const;
 
@@ -77,7 +91,9 @@ export interface Model {
 // Yeni model ekleme şeması (kullanıcının girdiği alanlar)
 export const insertModelSchema = z.object({
   grup: z.enum(GROUPS),
-  kategori: z.enum(CATEGORIES),
+  // Listedeki kategoriler ya da "Diğer" seçilince elle yazılan serbest metin
+  kategori: z.string().trim().min(1, "Kategori gerekli")
+    .refine((v) => v !== DIGER_KATEGORI, "Lütfen kategori adını yazın"),
   adet: z.number().int().positive("Adet 0'dan büyük olmalı"),
   termin: z.string().min(1, "Termin tarihi gerekli"),
   modelKodu: z.string().min(1, "Model kodu gerekli"),
