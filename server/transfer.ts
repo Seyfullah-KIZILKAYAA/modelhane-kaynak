@@ -112,6 +112,7 @@ export async function transferYap(
         grup: m.grup,
         modelKodu: m.modelKodu,
         kategori: m.kategori,
+        renk: m.renk ?? "",
         adet: m.adet,
         termin: m.termin,
         girenKisi: m.girenKisi,

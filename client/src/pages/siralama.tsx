@@ -198,7 +198,10 @@ export default function Siralama() {
                         </td>
                         <td className="py-2 px-2">{m.grup}</td>
                         <td className="py-2 px-2 font-medium">{m.modelKodu}</td>
-                        <td className="py-2 px-2">{m.kategori}</td>
+                        <td className="py-2 px-2">
+                          {m.kategori}
+                          {m.renk?.trim() && <span className="text-muted-foreground text-xs"> · {m.renk}</span>}
+                        </td>
                         <td className="py-2 px-2 text-right tabular-nums">{m.adet.toLocaleString("tr-TR")}</td>
                         <td className={`py-2 px-2 tabular-nums ${terminRenk(g, m.durum)}`}>
                           {trTarih(m.termin)}

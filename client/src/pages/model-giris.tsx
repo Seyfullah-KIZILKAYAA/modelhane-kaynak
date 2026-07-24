@@ -15,12 +15,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { GROUPS, CATEGORIES, DIGER_KATEGORI, STATUSES, NUMUNE_CINSLERI, NUMUNE_DURUMLARI, KUMAS_ASAMALARI } from "@shared/schema";
 import type { Model } from "@shared/schema";
+import { RenkSecici } from "@/components/renk-secici";
 import { durumRenk, trTarih, kalanGun, terminRenk, numuneRenk, kumasRenk } from "@/lib/helpers";
 import {
   Plus, Package, CheckCircle2, XCircle, Layers, Trash2,
   User, Tag, Hash, CalendarDays, UserCircle, Shirt, Scissors,
   Search, SlidersHorizontal, X, ChevronLeft, ChevronRight, RefreshCw,
-  AlertCircle, RotateCcw, Check, ChevronDown, ChevronUp, MessageSquare, Edit
+  AlertCircle, RotateCcw, Check, ChevronDown, ChevronUp, MessageSquare, Edit, Palette
 } from "lucide-react";
 
 
@@ -35,6 +36,8 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   // "Diğer" seçildiğinde elle yazılan kategori adı
   const [kategoriDiger, setKategoriDiger] = useState("");
   const kategoriDegeri = kategori === DIGER_KATEGORI ? kategoriDiger.trim() : kategori;
+  // Ürün rengi (opsiyonel). Katalogdan seçilen ad ya da "Diğer" ile elle yazılan metin.
+  const [renk, setRenk] = useState("");
   const [adet, setAdet] = useState("");
   const [termin, setTermin] = useState("");
   const [girenKisi, setGirenKisi] = useState("");
@@ -105,6 +108,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
     setModelKodu("");
     setKategori("");
     setKategoriDiger("");
+    setRenk("");
     setAdet("");
     setTermin("");
     setNumuneCinsi("Belirtilmedi");
@@ -139,7 +143,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const [editModel, setEditModel] = useState<Model | null>(null);
   // Düzenleme dialogundaki tüm alanların taslak hali
   const [eForm, setEForm] = useState({
-    grup: "", modelKodu: "", kategori: "", adet: "", termin: "", girenKisi: "",
+    grup: "", modelKodu: "", kategori: "", renk: "", adet: "", termin: "", girenKisi: "",
     durum: "Beklemede", numuneCinsi: "Belirtilmedi", numuneDurum: "Bekliyor",
     numuneSebep: "", kumasDurum: "Belirtilmedi", kumasHazirTarih: "", kumasNot: "",
   });
@@ -155,6 +159,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
       grup: m.grup,
       modelKodu: m.modelKodu,
       kategori: listede ? m.kategori : DIGER_KATEGORI,
+      renk: m.renk ?? "",
       adet: String(m.adet),
       termin: m.termin,
       girenKisi: m.girenKisi,
@@ -222,7 +227,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
   const ekle = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", "/api/models", {
-        grup, modelKodu, kategori: kategoriDegeri, adet: Number(adet), termin, girenKisi, numuneCinsi,
+        grup, modelKodu, kategori: kategoriDegeri, renk: renk.trim(), adet: Number(adet), termin, girenKisi, numuneCinsi,
         kumasDurum: yeniKumas, kumasHazirTarih: yeniKumasTarih, kumasNot: "",
       });
     },
@@ -232,12 +237,12 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
       if (girenKisi.trim()) {
         kaydetGirenKisiGecmis(girenKisi.trim());
       }
-      setModelKodu(""); setKategori(""); setKategoriDiger(""); setAdet(""); setTermin(""); setNumuneCinsi("Belirtilmedi");
+      setModelKodu(""); setKategori(""); setKategoriDiger(""); setRenk(""); setAdet(""); setTermin(""); setNumuneCinsi("Belirtilmedi");
       setYeniKumas("Belirtilmedi"); setYeniKumasTarih("");
     },
-    onError: (e: Error) => {
-      toast({ title: "Hata", description: e.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
-    },
+    // Hata bildirimi merkezi olarak queryClient'taki MutationCache.onError
+    // tarafından gösterilir (bkz. hata-bildirimi.ts). Burada tekrar toast
+    // açmıyoruz ki aynı hata iki kez görünmesin.
   });
 
   const durumGuncelle = useMutation({
@@ -278,8 +283,9 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
       toast({ title: "Model silindi", description: `${silModel?.modelKodu ?? "Model"} başarıyla silindi.` });
       setSilModel(null);
     },
-    onError: (e: Error) => {
-      toast({ title: "Silme başarısız", description: e.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    onError: () => {
+      // Hata bildirimini merkezi sistem gösterir; burada yalnızca diyaloğu
+      // kapatıyoruz.
       setSilModel(null);
     },
   });
@@ -292,9 +298,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
       toast({ title: "Başarılı", description: "Model başarıyla güncellendi." });
       setEditModel(null);
     },
-    onError: (e: Error) => {
-      toast({ title: "Hata", description: e.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
-    }
+    // Hata bildirimini merkezi sistem (MutationCache.onError) gösterir.
   });
 
   const grupKilitli = !isYonetici && !!sabitGrup;
@@ -528,6 +532,12 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-primary/70" /> Renk <span className="text-xs text-muted-foreground font-normal">(opsiyonel)</span>
+                </label>
+                <RenkSecici value={renk} onChange={setRenk} testId="select-renk" />
+              </div>
               {yeniKumas !== "Belirtilmedi" && yeniKumas !== "Hazır" && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium flex items-center gap-1.5">
@@ -716,6 +726,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                       <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-muted/95">Grup</th>
                       <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-muted/95 max-w-[140px]">Model</th>
                       <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-muted/95">Kategori</th>
+                      <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-muted/95">Renk</th>
                       <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground text-right whitespace-nowrap bg-muted/95">Adet</th>
                       <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-muted/95">Termin</th>
                       <th className="py-2.5 px-2 font-semibold text-[11px] uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-muted/95">Giren</th>
@@ -764,6 +775,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                             </div>
                           </td>
                           <td className="py-1.5 px-2 whitespace-nowrap text-[11px] text-muted-foreground">{m.kategori}</td>
+                          <td className="py-1.5 px-2 whitespace-nowrap text-[11px] text-muted-foreground">{m.renk?.trim() ? m.renk : <span className="opacity-40">—</span>}</td>
                           <td className="py-1.5 px-2 text-right font-semibold tabular-nums whitespace-nowrap text-xs">{m.adet.toLocaleString("tr-TR")}</td>
                           <td className={`py-1.5 px-2 tabular-nums whitespace-nowrap text-xs ${terminRenk(g, m.durum)}`}>
                             <span className="font-semibold">{trTarih(m.termin)}</span>
@@ -929,7 +941,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                             <Badge variant="outline" className="text-xs">{m.grup}</Badge>
                             <Badge variant="outline" className={`text-xs ${durumRenk(m.durum)}`}>{m.durum}</Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-0.5">{m.kategori} · {m.adet.toLocaleString("tr-TR")} adet</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">{m.kategori}{m.renk?.trim() ? ` · ${m.renk}` : ""} · {m.adet.toLocaleString("tr-TR")} adet</p>
                         </div>
                         {isYonetici && (
                           <div className="flex flex-col gap-1 shrink-0">
@@ -1279,6 +1291,7 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                   grup: eForm.grup,
                   modelKodu: eForm.modelKodu.trim(),
                   kategori: eKategoriDegeri,
+                  renk: eForm.renk.trim(),
                   adet: Number(eForm.adet),
                   termin: eForm.termin,
                   girenKisi: eForm.girenKisi.trim(),
@@ -1329,6 +1342,10 @@ export default function ModelGiris({ isYonetici, grup: sabitGrup }: { isYonetici
                         data-testid="edit-kategori-diger"
                       />
                     )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Renk <span className="text-xs text-muted-foreground font-normal">(opsiyonel)</span></label>
+                    <RenkSecici value={eForm.renk} onChange={eDegis("renk")} testId="edit-renk" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Adet</label>

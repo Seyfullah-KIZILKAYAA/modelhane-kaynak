@@ -9,6 +9,7 @@ function rowToModel(r: any): Model {
     grup: r.grup,
     modelKodu: r.model_kodu,
     kategori: r.kategori,
+    renk: r.renk ?? "",
     adet: r.adet,
     termin: r.termin,
     girenKisi: r.giren_kisi,
@@ -25,7 +26,7 @@ function rowToModel(r: any): Model {
   } as Model;
 }
 
-const SELECT_COLS = `id, grup, model_kodu, kategori, adet, termin, giren_kisi,
+const SELECT_COLS = `id, grup, model_kodu, kategori, renk, adet, termin, giren_kisi,
   durum, numune_durum, numune_sebep, numune_cinsi, kumas_durum,
   kumas_hazir_tarih, kumas_not, sira_no, created_at`;
 
@@ -46,6 +47,7 @@ export class SqlServerStorage implements IStorage {
       .input("grup", sql.NVarChar(100), m.grup)
       .input("model_kodu", sql.NVarChar(200), m.modelKodu)
       .input("kategori", sql.NVarChar(100), m.kategori)
+      .input("renk", sql.NVarChar(200), (m as any).renk ?? "")
       .input("adet", sql.Int, m.adet)
       .input("termin", sql.NVarChar(20), m.termin)
       .input("giren_kisi", sql.NVarChar(200), m.girenKisi)
@@ -59,12 +61,12 @@ export class SqlServerStorage implements IStorage {
       .input("created_at", sql.BigInt, Date.now())
       .query(`
         INSERT INTO dbo.models
-          (grup, model_kodu, kategori, adet, termin, giren_kisi, durum,
+          (grup, model_kodu, kategori, renk, adet, termin, giren_kisi, durum,
            numune_durum, numune_sebep, numune_cinsi, kumas_durum,
            kumas_hazir_tarih, kumas_not, sira_no, created_at)
         OUTPUT ${SELECT_COLS.split(",").map((c) => "INSERTED." + c.trim()).join(", ")}
         VALUES
-          (@grup, @model_kodu, @kategori, @adet, @termin, @giren_kisi, @durum,
+          (@grup, @model_kodu, @kategori, @renk, @adet, @termin, @giren_kisi, @durum,
            @numune_durum, @numune_sebep, @numune_cinsi, @kumas_durum,
            @kumas_hazir_tarih, @kumas_not, NULL, @created_at)
       `);
@@ -136,6 +138,7 @@ export class SqlServerStorage implements IStorage {
       { col: "grup", type: sql.NVarChar(100), value: m.grup },
       { col: "model_kodu", type: sql.NVarChar(200), value: m.modelKodu },
       { col: "kategori", type: sql.NVarChar(100), value: m.kategori },
+      { col: "renk", type: sql.NVarChar(200), value: (m as any).renk ?? "" },
       { col: "adet", type: sql.Int, value: m.adet },
       { col: "termin", type: sql.NVarChar(20), value: m.termin },
       { col: "giren_kisi", type: sql.NVarChar(200), value: m.girenKisi },

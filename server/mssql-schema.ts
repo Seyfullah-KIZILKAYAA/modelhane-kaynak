@@ -75,6 +75,7 @@ export async function ensureTables(): Promise<{ models: boolean; passwords: bool
       grup               NVARCHAR(100)  NOT NULL,
       model_kodu         NVARCHAR(200)  NOT NULL,
       kategori           NVARCHAR(100)  NOT NULL,
+      renk               NVARCHAR(200)  NOT NULL DEFAULT '',
       adet               INT            NOT NULL,
       termin             NVARCHAR(20)   NOT NULL DEFAULT '',
       giren_kisi         NVARCHAR(200)  NOT NULL DEFAULT '',
@@ -93,6 +94,12 @@ export async function ensureTables(): Promise<{ models: boolean; passwords: bool
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_models_created_at' AND object_id = OBJECT_ID('dbo.models'))
     CREATE INDEX IX_models_created_at ON dbo.models (created_at)
+  `);
+
+  // Önceki sürümlerden gelen tablolarda "renk" sütunu olmayabilir; varsa dokunma.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.models', 'renk') IS NULL
+    ALTER TABLE dbo.models ADD renk NVARCHAR(200) NOT NULL DEFAULT ''
   `);
 
   // Grup şifreleri. Şifreler düz metin DEĞİL, scrypt ile hash'lenmiş saklanır.

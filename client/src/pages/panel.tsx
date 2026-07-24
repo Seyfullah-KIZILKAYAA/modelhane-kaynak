@@ -173,7 +173,7 @@ export default function Panel() {
                     <div key={m.id} className="flex items-center justify-between text-sm border-b pb-2.5 last:border-0 last:pb-0">
                       <div className="min-w-0 flex-1">
                         <span className="font-semibold">{m.modelKodu}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">{m.kategori}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">{m.kategori}{m.renk?.trim() ? ` · ${m.renk}` : ""}</span>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">{m.grup}</Badge>
                           <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${durumRenk(m.durum)}`}>{m.durum}</Badge>
@@ -252,7 +252,7 @@ export default function Panel() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-semibold">{m.modelKodu}</span>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">{m.grup}</Badge>
-                      <span className="text-muted-foreground text-xs">{m.kategori}</span>
+                      <span className="text-muted-foreground text-xs">{m.kategori}{m.renk?.trim() ? ` · ${m.renk}` : ""}</span>
                     </div>
                     <p className="text-xs text-red-600 dark:text-red-400 mt-1 bg-red-50 dark:bg-red-500/10 rounded px-2 py-1">
                       {m.numuneSebep || "Sebep belirtilmedi"}

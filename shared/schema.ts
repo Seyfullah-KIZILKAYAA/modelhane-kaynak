@@ -74,6 +74,7 @@ export interface Model {
   grup: string;
   modelKodu: string;
   kategori: string;
+  renk: string; // Ürün rengi (Nebim kataloğundan seçilen ad ya da "Diğer" ile elle yazılan). Boş olabilir.
   adet: number;
   termin: string; // ISO tarih YYYY-MM-DD
   girenKisi: string;
@@ -94,6 +95,8 @@ export const insertModelSchema = z.object({
   // Listedeki kategoriler ya da "Diğer" seçilince elle yazılan serbest metin
   kategori: z.string().trim().min(1, "Kategori gerekli")
     .refine((v) => v !== DIGER_KATEGORI, "Lütfen kategori adını yazın"),
+  // Renk opsiyonel: boş bırakılabilir. "Diğer" seçilip boş kalırsa da boş sayılır.
+  renk: z.string().trim().default(""),
   adet: z.number().int().positive("Adet 0'dan büyük olmalı"),
   termin: z.string().min(1, "Termin tarihi gerekli"),
   modelKodu: z.string().min(1, "Model kodu gerekli"),
@@ -133,6 +136,7 @@ export const updateKumasSchema = z.object({
 export const updateModelSchema = z.object({
   grup: z.string().min(1),
   kategori: z.string().min(1),
+  renk: z.string().trim().default(""),
   adet: z.number().int().positive(),
   termin: z.string().min(1),
   modelKodu: z.string().min(1),

@@ -113,7 +113,7 @@ export default function Durumum({ grup }: { grup: string | null }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">{m.modelKodu}</span>
-                        <span className="text-sm text-muted-foreground">{m.kategori}</span>
+                        <span className="text-sm text-muted-foreground">{m.kategori}{m.renk?.trim() ? ` · ${m.renk}` : ""}</span>
                         <span className="text-sm text-muted-foreground tabular-nums">· {m.adet.toLocaleString("tr-TR")} adet</span>
                       </div>
                       <div className={`text-sm tabular-nums mt-0.5 ${terminRenk(g, m.durum)}`}>
@@ -189,7 +189,7 @@ export default function Durumum({ grup }: { grup: string | null }) {
                 <div key={m.id} className="flex items-center justify-between text-sm border-b pb-2 last:border-0" data-testid={`tamam-${m.id}`}>
                   <div>
                     <span className="font-medium">{m.modelKodu}</span>
-                    <span className="text-muted-foreground ml-2">{m.kategori} · {m.adet.toLocaleString("tr-TR")} adet</span>
+                    <span className="text-muted-foreground ml-2">{m.kategori}{m.renk?.trim() ? ` · ${m.renk}` : ""} · {m.adet.toLocaleString("tr-TR")} adet</span>
                   </div>
                   <Badge variant="outline" className={durumRenk(m.durum)}>
                     <CheckCircle2 className="w-3 h-3 mr-1" /> {m.durum}

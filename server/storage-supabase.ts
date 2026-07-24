@@ -9,6 +9,7 @@ function rowToModel(r: any): Model {
     grup: r.grup,
     modelKodu: r.model_kodu,
     kategori: r.kategori,
+    renk: r.renk ?? "",
     adet: r.adet,
     termin: r.termin,
     girenKisi: r.giren_kisi,
@@ -31,6 +32,7 @@ function modelToRow(m: Partial<UpdateModel>): Record<string, any> {
   if (m.grup !== undefined) row.grup = m.grup;
   if (m.modelKodu !== undefined) row.model_kodu = m.modelKodu;
   if (m.kategori !== undefined) row.kategori = m.kategori;
+  if ((m as any).renk !== undefined) row.renk = (m as any).renk;
   if (m.adet !== undefined) row.adet = m.adet;
   if (m.termin !== undefined) row.termin = m.termin;
   if (m.girenKisi !== undefined) row.giren_kisi = m.girenKisi;
@@ -68,6 +70,7 @@ export class SupabaseStorage implements IStorage {
         grup: m.grup,
         model_kodu: m.modelKodu,
         kategori: m.kategori,
+        renk: (m as any).renk ?? "",
         adet: m.adet,
         termin: m.termin,
         giren_kisi: m.girenKisi,

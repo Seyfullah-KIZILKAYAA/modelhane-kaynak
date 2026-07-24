@@ -1,4 +1,11 @@
-import { QueryClient, QueryFunction, focusManager } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryCache,
+  MutationCache,
+  QueryFunction,
+  focusManager,
+} from "@tanstack/react-query";
+import { hataBildir } from "./hata-bildirimi";
 
 /**
  * Tüm veri erişimi Express sunucusu üzerinden gider.
@@ -144,7 +151,29 @@ if (typeof document !== "undefined") {
   });
 }
 
+/**
+ * API/veritabanı hatalarını bildirim olarak gösterir.
+ *
+ * 401 (oturum süresi doldu) normal bir akıştır — kullanıcı yeniden giriş
+ * ekranına döner — bu yüzden onu uyarı olarak göstermeyiz.
+ */
+function apiHatasiniBildir(hata: unknown): void {
+  const mesaj = hata instanceof Error ? hata.message : String(hata);
+  if (mesaj.startsWith("401")) return;
+  hataBildir(hata, "api");
+}
+
 export const queryClient = new QueryClient({
+  // Veri çekme (query) hataları: sunucu/veritabanı erişimi başarısız olunca.
+  queryCache: new QueryCache({
+    onError: (hata) => apiHatasiniBildir(hata),
+  }),
+  // Yazma (mutation) hataları: kaydet/güncelle/sil isteği başarısız olunca.
+  // Bileşenler kendi onError'ında özel mesaj gösterse de, hiç göstermeyen
+  // işlemlerin sessizce yutulmaması için burada da yakalarız.
+  mutationCache: new MutationCache({
+    onError: (hata) => apiHatasiniBildir(hata),
+  }),
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
